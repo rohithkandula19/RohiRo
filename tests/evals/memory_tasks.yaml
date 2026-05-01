@@ -1,0 +1,84 @@
+# 20 tasks for the memory sub-agent.
+# each is: input, expected_intent, expected_action, gotchas.
+# the eval harness in tests/evals/test_memory.py runs these and scores >= 85% pass.
+
+tasks:
+  - id: m-01
+    input: "remember that i prefer 25 minute meetings"
+    expected: "writes to preferences with key=meeting_default_minutes value=25"
+
+  - id: m-02
+    input: "what's my role at pnc?"
+    expected: "reads profile, returns the role line"
+
+  - id: m-03
+    input: "add sarah lin from photon labs as a contact, recruiter"
+    expected: "inserts into contacts with role=recruiter, company=photon labs"
+
+  - id: m-04
+    input: "log a decision: we picked langgraph over crewai because of durable interrupts"
+    expected: "inserts into decisions with title and body"
+
+  - id: m-05
+    input: "what did we decide about the model gateway last month?"
+    expected: "searches decisions and conversations, returns relevant rows"
+
+  - id: m-06
+    input: "show me all my contacts at pnc"
+    expected: "filters contacts by company=pnc"
+
+  - id: m-07
+    input: "forget my old gym membership, i'm not using it anymore"
+    expected: "marks the matching event/preference as inactive, doesn't hard delete"
+
+  - id: m-08
+    input: "what was my last interaction with alex chen?"
+    expected: "looks up contact, returns last_interaction_at and recent conversation snippet"
+
+  - id: m-09
+    input: "track a new project: ro-medrag, status=active, repo on github"
+    expected: "inserts into projects"
+
+  - id: m-10
+    input: "summarize the last week of conversations about rohflow"
+    expected: "vector + bm25 search filtered to rohflow, claude summarizes"
+
+  - id: m-11
+    input: "what's my fitness goal?"
+    expected: "reads profile.md, returns the fitness goal line"
+
+  - id: m-12
+    input: "i moved from charlotte to seattle"
+    expected: "updates profile.md location, logs a decision"
+
+  - id: m-13
+    input: "what tools do i have for code work?"
+    expected: "lists registered tools whose domain=code"
+
+  - id: m-14
+    input: "remind me what i said about the cache key format"
+    expected: "searches conversations for cache key, returns the relevant turn"
+
+  - id: m-15
+    input: "show me decisions tagged 'architecture'"
+    expected: "filters decisions by tag"
+
+  - id: m-16
+    input: "block out my preference: no calls before 10 am"
+    expected: "writes to preferences"
+
+  - id: m-17
+    input: "search for everything about photon labs"
+    expected: "hybrid search across contacts, projects, conversations, events"
+
+  - id: m-18
+    input: "consolidate now"
+    expected: "triggers consolidation routine"
+
+  - id: m-19
+    input: "what's in my profile?"
+    expected: "reads and returns profile.md as-is"
+
+  - id: m-20
+    input: "delete the contact for jane doe"
+    expected: "deletes contact (this is internal, not outward, so no approval needed)"

@@ -1,0 +1,10 @@
+{
+  "name": "@ro/types",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "gen": "openapi-typescript http://localhost:8000/openapi.json -o src/api.ts"
+  }
+}
