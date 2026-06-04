@@ -36,10 +36,24 @@ export async function chatOnce(text: string, sessionId?: string) {
   );
 }
 
+export type ToolCall = {
+  tool: string;
+  args?: Record<string, unknown>;
+  result?: unknown;
+};
+
 export type StreamEvent =
   | { type: "stage"; name: string; text: string }
   | { type: "trace"; kind: string; [k: string]: unknown }
-  | { type: "final"; text: string; elapsed_ms: number; domains: string[]; session_id: string };
+  | {
+      type: "final";
+      text: string;
+      elapsed_ms: number;
+      domains: string[];
+      session_id: string;
+      actions?: string[];
+      tool_calls?: ToolCall[];
+    };
 
 export async function chatStream(
   text: string,

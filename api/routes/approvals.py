@@ -1,4 +1,4 @@
-"""approval routes. list pending, decide, mark executed."""
+"""approval routes. list pending, decide, execute."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from api.supervisor import approval
+from api.supervisor import approval, execute as execute_mod
 
 router = APIRouter()
 
@@ -30,4 +30,9 @@ async def decide(action_id: str, payload: Decision) -> dict:
     except ValueError as e:
         raise HTTPException(400, "bad id") from e
     await approval.decide(aid, decision=payload.decision, edit_note=payload.edit_note)
-    return {"ok": True}
+
+    # if approved (or edited), execute immediately
+    if payload.decision in {"approved", "edited"}:
+        result = await execute_mod.execute(aid)
+        return {"ok": True, "executed": True, "result": result}
+    return {"ok": True, "executed": False}

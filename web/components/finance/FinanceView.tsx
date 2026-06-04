@@ -20,33 +20,35 @@ export function FinanceView() {
   const totalExp = exp.reduce((a, b) => a + b.total, 0);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div className="grid gap-3 md:grid-cols-3">
         {bals.map((b) => (
-          <div key={b.id} className="card">
-            <div className="kicker">{b.name}</div>
-            <div className="mt-2 font-serif text-[28px]">${b.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
-            <div className="kicker mt-1">read-only</div>
+          <div key={b.id} className="card p-4">
+            <div className="label">{b.name}</div>
+            <div className="mt-1 text-[24px] font-semibold tracking-tight text-ink">
+              ${b.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            </div>
+            <div className="meta mt-1">Read-only</div>
           </div>
         ))}
       </div>
 
-      <div className="card">
-        <div className="flex items-baseline justify-between">
-          <div className="kicker">last 30 days · spend</div>
-          <div className="font-serif text-[20px]">${totalExp.toFixed(2)}</div>
+      <div className="card p-5">
+        <div className="section-title">
+          <h3>Last 30 days · spend</h3>
+          <div className="text-[15px] font-semibold text-ink">${totalExp.toFixed(2)}</div>
         </div>
-        <div className="mt-3 space-y-2">
+        <div className="mt-3 space-y-2.5">
           {exp.map((e) => {
             const pct = totalExp > 0 ? (e.total / totalExp) * 100 : 0;
             return (
               <div key={e.category}>
                 <div className="flex items-baseline justify-between text-[12.5px]">
                   <span className="text-ink">{e.category}</span>
-                  <span className="font-mono text-[11px] text-ink-muted">${e.total.toFixed(2)}</span>
+                  <span className="font-mono text-[11.5px] text-ink-muted">${e.total.toFixed(2)}</span>
                 </div>
-                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-accent-soft">
-                  <div className="h-full bg-accent" style={{ width: `${pct}%` }} />
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-hover">
+                  <div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} />
                 </div>
               </div>
             );
@@ -54,22 +56,25 @@ export function FinanceView() {
         </div>
       </div>
 
-      <div className="card">
-        <div className="kicker mb-3">subscriptions</div>
-        <table className="w-full text-[13px]">
-          <thead className="kicker text-ink-subtle">
+      <div className="card p-5">
+        <div className="section-title">
+          <h3>Subscriptions</h3>
+          <span className="text-[11.5px] text-ink-subtle">{subs.length} active</span>
+        </div>
+        <table className="term-table">
+          <thead>
             <tr>
-              <th className="py-1 text-left">name</th>
-              <th className="py-1 text-right">monthly</th>
-              <th className="py-1 text-right">renews</th>
+              <th>Name</th>
+              <th className="text-right">Monthly</th>
+              <th className="text-right">Renews</th>
             </tr>
           </thead>
           <tbody>
             {subs.map((s) => (
-              <tr key={s.id} className="border-t border-hair border-line-subtle">
-                <td className="py-2">{s.name}</td>
-                <td className="py-2 text-right font-mono">${s.monthly.toFixed(2)}</td>
-                <td className="py-2 text-right text-ink-muted">{s.renews}</td>
+              <tr key={s.id}>
+                <td className="text-ink">{s.name}</td>
+                <td className="text-right font-mono">${s.monthly.toFixed(2)}</td>
+                <td className="text-right text-ink-muted">{s.renews}</td>
               </tr>
             ))}
           </tbody>

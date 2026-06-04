@@ -16,7 +16,12 @@ from api.observability.logging import log
 DOMAINS = [
     "comms", "calendar", "code", "jobs", "research", "files",
     "finance", "health", "admin", "content", "memory",
-    "chat",  # default, no domain action needed
+    "notion",     # pages, search, create, append
+    "linear",     # issues, search, create, comment
+    "digest",     # morning brief / daily summary
+    "actions",    # shell.run, file.write, web.fetch
+    "scheduler",  # cron + once reminders
+    "chat",
 ]
 
 CLASSIFY_PROMPT = """you classify ro's request into one or more domains.
@@ -33,12 +38,17 @@ domains:
 - admin: bills, reminders, travel
 - content: resume, blog, portfolio drafts
 - memory: profile, contacts, decisions, history
+- notion: notion pages, databases, "search notion", "new notion page", "append to my X page"
+- scheduler: anything that schedules a future action — "every monday at 9am", "remind me in 2 hours", "tomorrow at 5pm", "list my schedules", "cancel my reminder"
+- linear: linear (linear.app) issues — "my linear issues", "show RO-42", "new issue in RO: X", "comment on RO-42: ..."
+- digest: a roll-up of everything — "brief me", "morning brief", "daily digest", "what's my day look like", "catch me up"
+- actions: arbitrary shell commands, file writes to ro's scratch dir, http requests. use when the request doesn't match any other vertical but ro is being asked to do something concrete on the machine or the web (run X, fetch URL, save a note, append to a file).
 - chat: just a question, no action
 
 reply with json only. shape:
 {"domains": ["..."], "intent": "one short sentence", "needs_action": true/false}
 
-needs_action is true if ro is asking you to do something (draft, send, schedule, query a tool). false if just chatting.
+needs_action is true if ro is asking you to do something (draft, send, schedule, query a tool, run a command, save a file). false if just chatting.
 """
 
 

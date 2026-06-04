@@ -7,6 +7,7 @@ import uuid
 from typing import Any, Optional
 
 from api.memory.db import db
+from api.observability.logging import log
 
 
 async def open_approval(
@@ -56,12 +57,38 @@ async def decide(
 ) -> None:
     if decision not in {"approved", "rejected", "edited"}:
         raise ValueError(f"bad decision: {decision}")
+
+    row = await db.fetchrow(
+        "select tool, payload from action_log where id = $1",
+        action_id,
+    )
+
     await db.execute(
         "update action_log set status = $1, edit_note = $2, decided_at = now() where id = $3",
         decision,
         edit_note,
         action_id,
     )
+
+    # capture for the voice learner (best-effort; never block the decision)
+    if row:
+        payload = row["payload"]
+        if isinstance(payload, str):
+            try:
+                payload = json.loads(payload)
+            except Exception:
+                payload = {}
+        try:
+            from api.eval.voice_learner import capture_decision
+            await capture_decision(
+                action_id=action_id,
+                tool=row["tool"],
+                decision=decision,
+                payload=payload or {},
+                edit_note=edit_note,
+            )
+        except Exception:
+            log.warning("voice signal capture failed", action_id=str(action_id))
 
 
 async def mark_executed(action_id: uuid.UUID, *, error: Optional[str] = None) -> None:

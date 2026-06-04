@@ -34,51 +34,49 @@ export function InboxView() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-1.5">
         {SOURCES.map((s) => (
           <button
             key={s}
             onClick={() => setSource(s)}
             className={
-              "rounded-button border border-hair px-3 py-1.5 text-[12px] " +
-              (source === s ? "border-accent bg-accent-soft text-accent" : "border-line text-ink-muted")
+              "rounded-[5px] border px-2.5 py-1 text-[12px] capitalize transition-colors " +
+              (source === s
+                ? "border-accent/30 bg-accent-soft text-accent"
+                : "border-line bg-surface text-ink-muted hover:bg-surface-hover")
             }
           >
             {s}
           </button>
         ))}
         <label className="ml-2 flex items-center gap-2 text-[12px] text-ink-muted">
-          <input
-            type="checkbox"
-            checked={unread}
-            onChange={(e) => setUnread(e.target.checked)}
-          />
-          unread only
+          <input type="checkbox" checked={unread} onChange={(e) => setUnread(e.target.checked)} className="accent-accent" />
+          Unread only
         </label>
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-card border border-hair border-line">
+      <div className="mt-4 card overflow-hidden">
         {rows.length === 0 ? (
-          <div className="p-6 text-[13px] text-ink-subtle">nothing here. either it&apos;s quiet, or the api isn&apos;t up.</div>
+          <div className="p-6 text-[13px] text-ink-subtle">Inbox is quiet.</div>
         ) : (
           rows.map((r) => (
             <div
               key={r.id}
-              className="flex cursor-pointer items-start gap-4 border-b border-hair border-line-subtle bg-surface p-4 last:border-b-0 hover:bg-accent-soft"
+              className="flex cursor-pointer items-start gap-3 border-b border-line px-4 py-3 last:border-b-0 hover:bg-surface-hover"
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-[11px] font-medium text-accent-ink">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[10.5px] font-semibold text-accent">
                 {initials(r.from_name)}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-baseline gap-2">
-                  <span className="text-[13.5px] text-ink">{r.from_name}</span>
-                  <span className="chip">{r.source}</span>
-                  {r.unread ? <span className="h-1.5 w-1.5 rounded-full bg-accent" /> : null}
-                  {r.has_draft ? <span className="chip">draft</span> : null}
-                  <span className="ml-auto kicker">{formatRelative(r.received_at)}</span>
+                  <span className="text-[13px] font-medium text-ink">{r.from_name}</span>
+                  <span className="chip capitalize">{r.source}</span>
+                  {r.unread ? <span className="dot dot-live" /> : null}
+                  {r.has_draft ? <span className="chip chip-warn">Draft</span> : null}
+                  <span className="ml-auto text-[11.5px] text-ink-subtle">{formatRelative(r.received_at)}</span>
                 </div>
-                {r.subject ? <div className="text-[13px] text-ink-muted">{r.subject}</div> : null}
-                <div className="mt-1 line-clamp-1 text-[13px] text-ink-subtle">{r.snippet}</div>
+                {r.subject ? <div className="mt-0.5 text-[12.5px] text-ink-muted">{r.subject}</div> : null}
+                <div className="mt-0.5 line-clamp-1 text-[12px] text-ink-subtle">{r.snippet}</div>
               </div>
             </div>
           ))
@@ -89,11 +87,5 @@ export function InboxView() {
 }
 
 function initials(name: string) {
-  return name
-    .split(/\s+/)
-    .map((s) => s[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toLowerCase();
+  return name.split(/\s+/).map((s) => s[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
 }

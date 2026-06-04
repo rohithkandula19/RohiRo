@@ -42,97 +42,83 @@ export function MemoryWorkspace() {
 
   async function runSearch(q: string) {
     setSearch(q);
-    if (!q.trim()) {
-      setHits([]);
-      return;
-    }
+    if (!q.trim()) { setHits([]); return; }
     const r = await fetch(`/api/memory/search?q=${encodeURIComponent(q)}&limit=8`);
     if (r.ok) setHits(await r.json());
   }
 
   return (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-      <div className="card flex h-[520px] flex-col">
-        <div className="flex items-center justify-between">
-          <div className="kicker">profile.md</div>
-          <div className="kicker">
-            {dirty ? "saving" : savedAt ? "saved" : "in sync"}
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="card flex h-[540px] flex-col overflow-hidden">
+        <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[12px] text-ink">profile.md</span>
           </div>
+          <span className="label">{dirty ? "Saving…" : savedAt ? "Saved" : "In sync"}</span>
         </div>
         <textarea
           value={profile.body}
-          onChange={(e) => {
-            setProfile({ ...profile, body: e.target.value });
-            setDirty(true);
-          }}
-          className="mt-3 h-full w-full resize-none rounded-button bg-bg p-3 font-mono text-[12.5px] leading-6 text-ink outline-none"
+          onChange={(e) => { setProfile({ ...profile, body: e.target.value }); setDirty(true); }}
+          className="h-full w-full resize-none bg-surface p-4 font-mono text-[12.5px] leading-6 text-ink outline-none"
           placeholder="# profile&#10;&#10;## who&#10;- name: ..."
         />
       </div>
 
-      <div className="card h-[520px] overflow-hidden">
+      <div className="card flex h-[540px] flex-col overflow-hidden">
         <Tabs.Root defaultValue="contacts" className="flex h-full flex-col">
-          <Tabs.List className="flex gap-3 border-b border-hair border-line-subtle pb-2">
+          <Tabs.List className="flex items-center gap-1 border-b border-line px-3 py-2">
             {["contacts", "decisions", "search"].map((k) => (
               <Tabs.Trigger
                 key={k}
                 value={k}
-                className="kicker px-1 py-1 data-[state=active]:text-accent"
+                className="rounded-[5px] px-2.5 py-1 text-[12.5px] capitalize text-ink-muted data-[state=active]:bg-accent-soft data-[state=active]:text-accent"
               >
                 {k}
               </Tabs.Trigger>
             ))}
           </Tabs.List>
 
-          <Tabs.Content value="contacts" className="mt-3 flex-1 overflow-auto">
-            <table className="w-full text-[13px]">
-              <thead className="kicker text-ink-subtle">
-                <tr>
-                  <th className="py-1 text-left">name</th>
-                  <th className="py-1 text-left">role</th>
-                  <th className="py-1 text-left">company</th>
-                </tr>
+          <Tabs.Content value="contacts" className="flex-1 overflow-auto p-4">
+            <table className="term-table">
+              <thead>
+                <tr><th>Name</th><th>Role</th><th>Company</th></tr>
               </thead>
               <tbody>
                 {contacts.map((c) => (
-                  <tr key={c.id} className="border-t border-hair border-line-subtle">
-                    <td className="py-2">{c.name}</td>
-                    <td className="py-2 text-ink-muted">{c.role ?? ""}</td>
-                    <td className="py-2 text-ink-muted">{c.company ?? ""}</td>
+                  <tr key={c.id}>
+                    <td className="text-ink">{c.name}</td>
+                    <td className="text-ink-muted">{c.role ?? ""}</td>
+                    <td className="text-ink-muted">{c.company ?? ""}</td>
                   </tr>
                 ))}
-                {!contacts.length ? (
-                  <tr><td colSpan={3} className="py-3 text-ink-subtle">no contacts yet.</td></tr>
-                ) : null}
+                {!contacts.length ? <tr><td colSpan={3} className="text-ink-subtle">No contacts.</td></tr> : null}
               </tbody>
             </table>
           </Tabs.Content>
 
-          <Tabs.Content value="decisions" className="mt-3 flex-1 overflow-auto">
-            <ul className="space-y-3">
+          <Tabs.Content value="decisions" className="flex-1 overflow-auto p-4">
+            <ul className="space-y-2">
               {decisions.map((d) => (
-                <li key={d.id} className="rounded-button border border-hair border-line-subtle p-3">
-                  <div className="kicker">{new Date(d.decided_at).toLocaleDateString()}</div>
-                  <div className="mt-1 text-[13px] text-ink">{d.title}</div>
-                  <div className="text-[12.5px] text-ink-muted">{d.body}</div>
+                <li key={d.id} className="rounded-[6px] border-l-2 border-accent bg-accent-soft p-3">
+                  <div className="text-[10.5px] uppercase tracking-wider text-accent">{new Date(d.decided_at).toLocaleDateString()}</div>
+                  <div className="mt-1 text-[13px] font-medium text-ink">{d.title}</div>
+                  <div className="text-[12px] text-ink-muted">{d.body}</div>
                 </li>
               ))}
-              {!decisions.length ? (
-                <li className="text-[13px] text-ink-subtle">no decisions logged yet.</li>
-              ) : null}
+              {!decisions.length ? <li className="text-[13px] text-ink-subtle">No decisions logged.</li> : null}
             </ul>
           </Tabs.Content>
 
-          <Tabs.Content value="search" className="mt-3 flex-1 overflow-auto">
+          <Tabs.Content value="search" className="flex-1 overflow-auto p-4">
             <input
-              className="input w-full"
-              placeholder="search past conversations and notes"
+              className="input"
+              placeholder="Search past conversations and notes"
               value={search}
               onChange={(e) => runSearch(e.target.value)}
             />
             <ul className="mt-3 space-y-2">
               {hits.map((h) => (
-                <li key={h.id} className="rounded-button border border-hair border-line-subtle p-3 text-[12.5px] text-ink-muted">
+                <li key={h.id} className="rounded-[6px] border border-line bg-surface-hover p-3 text-[12px] text-ink-muted">
                   {h.body.slice(0, 280)}
                 </li>
               ))}

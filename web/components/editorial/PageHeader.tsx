@@ -2,16 +2,17 @@ type Props = {
   kicker: string;
   title: string;
   subtitle?: string;
+  actions?: React.ReactNode;
 };
 
-export function PageHeader({ kicker, title, subtitle }: Props) {
+export function PageHeader({ title, subtitle, actions }: Props) {
   return (
-    <header className="mb-12 max-w-2xl">
-      <div className="kicker mb-3">— {kicker}</div>
-      <h1 className="headline text-[36px] tracking-tight text-ink">{title}</h1>
-      {subtitle ? (
-        <p className="mt-3 max-w-[480px] text-body text-ink-muted">{subtitle}</p>
-      ) : null}
+    <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <h1 className="h1">{title}</h1>
+        {subtitle ? <p className="meta mt-1 max-w-[640px]">{subtitle}</p> : null}
+      </div>
+      {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
     </header>
   );
 }

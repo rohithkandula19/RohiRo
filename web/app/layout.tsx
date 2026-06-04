@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { TopNav } from "@/components/nav/TopNav";
+import { Sidebar } from "@/components/nav/Sidebar";
 import { CommandPaletteProvider } from "@/components/nav/CommandPaletteProvider";
 
 export const metadata: Metadata = {
   title: "ro",
-  description: "one agent. your whole life.",
+  description: "your personal agent.",
   manifest: "/manifest.json",
 };
 
@@ -18,8 +18,10 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <CommandPaletteProvider>
-          <TopNav />
-          <main className="mx-auto max-w-[1200px] px-6 py-10">{children}</main>
+          <div className="flex h-screen overflow-hidden">
+            <Sidebar />
+            <main className="min-w-0 flex-1">{children}</main>
+          </div>
         </CommandPaletteProvider>
       </body>
     </html>

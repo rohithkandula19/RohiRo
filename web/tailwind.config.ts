@@ -12,6 +12,8 @@ const config: Config = {
       colors: {
         bg: "var(--bg)",
         surface: "var(--surface)",
+        "surface-hover": "var(--surface-hover)",
+        sidebar: "var(--sidebar)",
         ink: {
           DEFAULT: "var(--ink)",
           muted: "var(--ink-muted)",
@@ -19,6 +21,7 @@ const config: Config = {
         },
         accent: {
           DEFAULT: "var(--accent)",
+          hover: "var(--accent-hover)",
           soft: "var(--accent-soft)",
           ink: "var(--accent-ink)",
         },
@@ -27,31 +30,22 @@ const config: Config = {
         danger: "var(--danger)",
         line: {
           DEFAULT: "var(--line)",
-          subtle: "var(--line-subtle)",
+          strong: "var(--line-strong)",
         },
       },
       fontFamily: {
-        serif: ['"Iowan Old Style"', "Charter", "Georgia", "serif"],
-        sans: ["-apple-system", "Inter", "system-ui", "sans-serif"],
-        mono: ['"JetBrains Mono"', "ui-monospace", '"SF Mono"', "Menlo", "monospace"],
-      },
-      letterSpacing: {
-        kicker: "0.14em",
-      },
-      fontSize: {
-        kicker: ["11px", { lineHeight: "1.4" }],
-        body: ["14px", { lineHeight: "1.7" }],
+        sans: ['"Inter"', "-apple-system", "system-ui", "sans-serif"],
+        serif: ['"Inter"', "-apple-system", "system-ui", "sans-serif"],
+        mono: ['ui-monospace', '"SF Mono"', "Menlo", "monospace"],
       },
       borderRadius: {
         card: "8px",
         button: "6px",
-        chip: "3px",
+        chip: "4px",
       },
-      borderWidth: {
-        hair: "0.5px",
-      },
-      transitionDuration: {
-        page: "150ms",
+      boxShadow: {
+        sm: "var(--shadow-sm)",
+        md: "var(--shadow-md)",
       },
     },
   },

@@ -20,6 +20,7 @@ from typing import Any, AsyncIterator
 from api.config import settings
 from api.memory import db, embed
 from api.memory.retrieval import retrieve_relevant, get_profile_body
+from api.memory.tree import write_event as tree_write
 from api.observability.claude import claude_client
 from api.observability.logging import log
 from api.supervisor.router import classify
@@ -39,12 +40,25 @@ def _build_system(profile: str, retrieved: list[dict[str, Any]]) -> str:
     parts = [base]
     if profile.strip():
         parts.append("## profile\n\n" + profile.strip())
-    if retrieved:
+
+    # split: tree hits get their own prominent section, conversation hits go below
+    tree_hits = [r for r in retrieved if r.get("source") == "memory_tree"]
+    convo_hits = [r for r in retrieved if r.get("source") != "memory_tree"]
+
+    if tree_hits:
+        blocks = []
+        for r in tree_hits:
+            label = r.get("label", "")
+            blocks.append(f"### {label}\n{r.get('body','')[:1400]}")
+        parts.append("## what ro has been doing\n\n" + "\n\n".join(blocks))
+
+    if convo_hits:
         ctx = "\n\n".join(
             f"- ({r.get('source','memory')}) {r.get('body','')[:400]}"
-            for r in retrieved
+            for r in convo_hits
         )
-        parts.append("## relevant memory\n\n" + ctx)
+        parts.append("## relevant past exchanges\n\n" + ctx)
+
     parts.append("## now\n\n" + datetime.now(tz=timezone.utc).isoformat())
     return "\n\n".join(parts)
 
@@ -104,6 +118,17 @@ async def stream_supervisor(
         elapsed_ms = int((time.monotonic() - started) * 1000)
         await _persist_turn(session_id, "user", user_text, {"routing": routing})
         await _persist_turn(session_id, "assistant", delegated["text"], {"agent": delegated["agent"]})
+        # auto-capture: ro just did something via a sub-agent
+        try:
+            await tree_write(
+                source="chat",
+                kind=f"{delegated['agent']}_run",
+                summary=f"{delegated['agent']}: {user_text[:140]}",
+                payload={"agent": delegated["agent"], "tools": delegated.get("tool_calls", []),
+                         "actions": delegated.get("actions", [])},
+            )
+        except Exception:
+            log.warning("tree write failed (delegated)")
         yield {"type": "trace", "kind": "agent", "agent": delegated["agent"], "actions": delegated.get("actions", [])}
         yield {
             "type": "final",
@@ -112,6 +137,7 @@ async def stream_supervisor(
             "domains": routing["domains"],
             "session_id": str(session_id),
             "actions": delegated.get("actions", []),
+            "tool_calls": delegated.get("tool_calls", []),
         }
         return
 
@@ -159,11 +185,13 @@ async def _maybe_dispatch(
     returns None when the supervisor should answer the user directly.
     """
 
-    if not routing.get("needs_action"):
-        return None
-
     domains = routing.get("domains") or []
     primary = domains[0] if domains else "chat"
+
+    # digest is read-only but always worth dispatching even when the classifier
+    # marks it as a question (needs_action=false).
+    if not routing.get("needs_action") and primary != "digest":
+        return None
 
     if primary == "comms":
         from api.agents.comms.agent import comms_agent
@@ -173,7 +201,128 @@ async def _maybe_dispatch(
             user_text=user_text,
             context={"retrieved": retrieved},
         )
-        return {"agent": "comms", "text": result.text or "(no draft)", "actions": result.actions_opened}
+        return {
+            "agent": "comms",
+            "text": result.text or "(no draft)",
+            "actions": result.actions_opened,
+            "tool_calls": result.tool_calls,
+        }
+
+    if primary == "notion":
+        from api.agents.notion.agent import notion_agent
+
+        result = await notion_agent.run(
+            session_id=str(session_id),
+            user_text=user_text,
+            context={"retrieved": retrieved},
+        )
+        return {
+            "agent": "notion",
+            "text": result.text or "(no result)",
+            "actions": result.actions_opened,
+            "tool_calls": result.tool_calls,
+        }
+
+    if primary == "files":
+        from api.agents.files.agent import files_agent
+
+        result = await files_agent.run(
+            session_id=str(session_id),
+            user_text=user_text,
+            context={"retrieved": retrieved},
+        )
+        return {
+            "agent": "files",
+            "text": result.text or "(no result)",
+            "actions": result.actions_opened,
+            "tool_calls": result.tool_calls,
+        }
+
+    if primary == "digest":
+        from api.digest import build_digest
+
+        result = await build_digest()
+        return {
+            "agent": "digest",
+            "text": result.get("markdown", "(no digest)"),
+            "actions": [],
+            "tool_calls": [{"tool": "digest.brief", "args": {}, "result": result.get("sections", {})}],
+        }
+
+    if primary == "linear":
+        from api.agents.linear.agent import linear_agent
+
+        result = await linear_agent.run(
+            session_id=str(session_id),
+            user_text=user_text,
+            context={"retrieved": retrieved},
+        )
+        return {
+            "agent": "linear",
+            "text": result.text or "(no result)",
+            "actions": result.actions_opened,
+            "tool_calls": result.tool_calls,
+        }
+
+    if primary == "scheduler":
+        from api.agents.scheduler.agent import scheduler_agent
+
+        result = await scheduler_agent.run(
+            session_id=str(session_id),
+            user_text=user_text,
+            context={"retrieved": retrieved},
+        )
+        return {
+            "agent": "scheduler",
+            "text": result.text or "(no result)",
+            "actions": result.actions_opened,
+            "tool_calls": result.tool_calls,
+        }
+
+    if primary == "actions":
+        from api.agents.actions.agent import actions_agent
+
+        result = await actions_agent.run(
+            session_id=str(session_id),
+            user_text=user_text,
+            context={"retrieved": retrieved},
+        )
+        return {
+            "agent": "actions",
+            "text": result.text or "(no plan)",
+            "actions": result.actions_opened,
+            "tool_calls": result.tool_calls,
+        }
+
+    if primary == "code":
+        from api.agents.code.agent import code_agent
+
+        result = await code_agent.run(
+            session_id=str(session_id),
+            user_text=user_text,
+            context={"retrieved": retrieved},
+        )
+        return {
+            "agent": "code",
+            "text": result.text or "(no result)",
+            "actions": result.actions_opened,
+            "tool_calls": result.tool_calls,
+        }
+
+    if primary == "calendar":
+        from api.agents.calendar.agent import calendar_agent
+
+        result = await calendar_agent.run(
+            session_id=str(session_id),
+            user_text=user_text,
+            context={"retrieved": retrieved},
+        )
+        return {
+            "agent": "calendar",
+            "text": result.text or "(no result)",
+            "actions": result.actions_opened,
+            "tool_calls": result.tool_calls,
+        }
 
     if primary == "memory":
         from api.agents.memory.agent import memory_agent

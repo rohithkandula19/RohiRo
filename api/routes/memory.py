@@ -8,8 +8,11 @@ from typing import Any, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from api.memory import autofetch
+from api.memory import entities as entities_mod
 from api.memory.db import db
 from api.memory.retrieval import retrieve_relevant
+from api.memory.tree import engine as tree_engine
 
 router = APIRouter()
 
@@ -122,6 +125,103 @@ async def add_decision(payload: DecisionIn) -> dict[str, Any]:
 @router.get("/search")
 async def search(q: str, limit: int = 10) -> list[dict[str, Any]]:
     return await retrieve_relevant(q, limit=limit)
+
+
+# ----- memory tree -----
+
+
+@router.get("/tree/brief")
+async def tree_brief(period: str = "today") -> dict[str, Any]:
+    node = await tree_engine.get_brief(period=period)
+    if not node:
+        return {"present": False, "period": period}
+    return {"present": True, "period": period, **node.__dict__}
+
+
+@router.get("/tree/recent")
+async def tree_recent(depth: int = 3, limit: int = 14) -> list[dict[str, Any]]:
+    nodes = await tree_engine.walk_recent(depth=depth, limit=limit)
+    return [n.__dict__ for n in nodes]
+
+
+@router.get("/tree/search")
+async def tree_search(q: str, limit: int = 8) -> list[dict[str, Any]]:
+    nodes = await tree_engine.search(q, limit=limit)
+    return [n.__dict__ for n in nodes]
+
+
+@router.post("/tree/summarize")
+async def tree_summarize() -> dict[str, Any]:
+    """trigger a manual roll-up. cron will call this every ~15 min."""
+    return await tree_engine.summarize_pending()
+
+
+@router.post("/autofetch")
+async def memory_autofetch() -> dict[str, Any]:
+    """trigger every integration fetcher once. background loop also does this every 15 min."""
+    counts = await autofetch.run_once()
+    counts["total"] = sum(counts.values())
+    return counts
+
+
+@router.post("/imessage/poll")
+async def memory_imessage_poll() -> dict[str, Any]:
+    """trigger the imessage listener once. handy after granting Full Disk Access."""
+    from api.listeners import imessage as listener
+    return await listener.run_once()
+
+
+@router.post("/telegram/poll")
+async def memory_telegram_poll() -> dict[str, Any]:
+    """trigger the telegram listener once. handy right after setting the bot token."""
+    from api.listeners import telegram as listener
+    return await listener.run_once()
+
+
+@router.post("/email/poll")
+async def memory_email_poll() -> dict[str, Any]:
+    """trigger the email listener once. scans newer_than:1d for mentions of ro."""
+    from api.listeners import email as listener
+    return await listener.run_once()
+
+
+@router.get("/browser/profiles")
+async def list_browser_profiles() -> dict[str, Any]:
+    """which hosts have a persistent browser profile saved."""
+    from api.integrations import browser
+    return {"profiles": browser.list_profiles(), "root": str(browser.PROFILE_ROOT)}
+
+
+# ----- entities -----
+
+
+@router.get("/entities")
+async def list_entities(q: str = "", limit: int = 20) -> list[dict[str, Any]]:
+    """fuzzy search the entity graph. empty q returns the most-seen recently."""
+    if q.strip():
+        ents = await entities_mod.find_entity(q, limit=limit)
+        return [e.__dict__ for e in ents]
+    rows = await db.fetch(
+        """select id::text, kind, name, coalesce(summary,'') as summary,
+                  seen_count, last_seen_at
+           from entities order by last_seen_at desc nulls last limit $1""",
+        limit,
+    )
+    return [{**dict(r), "last_seen_at": r["last_seen_at"].isoformat() if r["last_seen_at"] else ""} for r in rows]
+
+
+@router.get("/entities/profile")
+async def entity_profile_route(name: str) -> dict[str, Any]:
+    prof = await entities_mod.entity_profile(name)
+    if not prof:
+        return {"found": False}
+    return {"found": True, **prof}
+
+
+@router.post("/entities/extract")
+async def trigger_extract(limit: int = 80) -> dict[str, Any]:
+    """manual trigger. background loop runs every 30 min."""
+    return await entities_mod.run_extraction(limit=limit)
 
 
 def _serialize(row: Any) -> dict[str, Any]:

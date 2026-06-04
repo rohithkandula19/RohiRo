@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
@@ -9,38 +10,125 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.config import settings
+from api.eval.voice_learner import learn_voice
+from api.listeners import email as email_listener, imessage as imessage_listener, telegram as telegram_listener
+from api.memory.autofetch import run_once as autofetch_run_once
 from api.memory.db import db
+from api.memory.entities import run_extraction as entities_run
+from api.memory.tree import summarize_pending
 from api.observability.logging import log, setup_logging
+from api.scheduler import due_now as schedules_due, fire as schedule_fire
 from api.routes import (
     approvals,
     calendar,
     chat,
     code,
+    eval as eval_route,
     files,
     finance,
     health,
     inbox,
+    install,
     jobs,
     memory,
     research,
+    schedules,
     settings as settings_route,
     trace,
     voice,
+    webhooks,
 )
+
+
+async def _memory_summarizer_loop():
+    """run the tree summarizer every 15 min as a background task."""
+    while True:
+        try:
+            res = await summarize_pending(limit_hours=24)
+            if res.get("hours_processed"):
+                log.info("memory tree rolled up", **res)
+        except Exception:
+            log.exception("memory tree summarizer failed")
+        await asyncio.sleep(15 * 60)
+
+
+async def _scheduler_loop():
+    """fire due schedules every 30s. cheap when none are due."""
+    await asyncio.sleep(15)
+    while True:
+        try:
+            due = await schedules_due()
+            for s in due:
+                await schedule_fire(s)
+                log.info("scheduled task fired", id=s.id, title=s.title)
+        except Exception:
+            log.exception("scheduler loop failed")
+        await asyncio.sleep(30)
+
+
+async def _entity_extractor_loop():
+    """every 30 min: pull recent raw_events and extract entities."""
+    await asyncio.sleep(45)
+    while True:
+        try:
+            res = await entities_run(limit=80)
+            if res.get("entities_created") or res.get("entities_updated"):
+                log.info("entity extractor ran", **res)
+        except Exception:
+            log.exception("entity extractor failed")
+        await asyncio.sleep(30 * 60)
+
+
+async def _voice_learner_loop():
+    """re-derive learned_voice every hour. cheap when no new edits."""
+    await asyncio.sleep(60)  # let the api come up first
+    while True:
+        try:
+            res = await learn_voice()
+            if res:
+                log.info("voice learner updated", **res)
+        except Exception:
+            log.exception("voice learner failed")
+        await asyncio.sleep(60 * 60)
+
+
+async def _autofetch_loop():
+    """poll every configured integration every 15 min; write new things into the tree."""
+    # small delay so api comes up first
+    await asyncio.sleep(20)
+    while True:
+        try:
+            counts = await autofetch_run_once()
+            total = sum(counts.values())
+            if total:
+                log.info("autofetch wrote new events", total=total, **counts)
+        except Exception:
+            log.exception("autofetch loop failed")
+        await asyncio.sleep(15 * 60)
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     setup_logging()
     log.info("ro api booting", env=settings.env)
+    tasks: list[asyncio.Task] = []
     try:
-        # warm the pool, but don't crash if postgres isn't up yet.
         try:
             await db.pg()
         except Exception as e:
             log.warning("postgres not ready at boot", error=str(e))
+        tasks.append(asyncio.create_task(_memory_summarizer_loop()))
+        tasks.append(asyncio.create_task(_autofetch_loop()))
+        tasks.append(asyncio.create_task(_voice_learner_loop()))
+        tasks.append(asyncio.create_task(_entity_extractor_loop()))
+        tasks.append(asyncio.create_task(_scheduler_loop()))
+        tasks.append(asyncio.create_task(imessage_listener.loop()))
+        tasks.append(asyncio.create_task(telegram_listener.loop()))
+        tasks.append(asyncio.create_task(email_listener.loop()))
         yield
     finally:
+        for t in tasks:
+            t.cancel()
         await db.close()
         log.info("ro api shutdown")
 
@@ -75,3 +163,7 @@ app.include_router(finance.router, prefix="/api/finance", tags=["finance"])
 app.include_router(settings_route.router, prefix="/api/settings", tags=["settings"])
 app.include_router(approvals.router, prefix="/api/approvals", tags=["approvals"])
 app.include_router(voice.router, prefix="/api/voice", tags=["voice"])
+app.include_router(eval_route.router, prefix="/api/eval", tags=["eval"])
+app.include_router(schedules.router, prefix="/api/schedules", tags=["schedules"])
+app.include_router(install.router, tags=["install"])  # mounted at root (/install/ios.html)
+app.include_router(webhooks.router, tags=["webhooks"])  # /webhooks/whatsapp

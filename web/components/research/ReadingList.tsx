@@ -16,12 +16,13 @@ export function ReadingList() {
   return (
     <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
       {papers.map((p) => (
-        <div key={p.id} className="card">
-          <div className="kicker">{p.status}</div>
-          <h3 className="mt-2 font-serif text-[18px] leading-snug">{p.title}</h3>
-          <div className="mt-1 text-[12px] text-ink-muted">{p.authors}</div>
+        <div key={p.id} className="card p-4 card-hover">
+          <span className="chip capitalize">{p.status}</span>
+          <h3 className="mt-3 text-[14.5px] font-semibold leading-snug text-ink">{p.title}</h3>
+          <div className="meta mt-1">{p.authors}</div>
         </div>
       ))}
+      {!papers.length ? <div className="meta">No papers in your reading list.</div> : null}
     </div>
   );
 }

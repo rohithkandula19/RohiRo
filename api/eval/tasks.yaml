@@ -1,0 +1,136 @@
+# ro eval harness — 20 representative tasks.
+#
+# each task runs through run_supervisor() and is scored by its assertions.
+# assertions check the supervisor's *routing + response shape*, not external
+# api success — so the eval works in any environment without keys configured.
+#
+# assertion types:
+#   domain_in:        list of domains; passes if the supervisor classified into any
+#   text_contains:    substring(s) the response must contain (any-of by default)
+#   text_lacks:       substring(s) the response must NOT contain (all-of)
+#   text_min_length:  response text >= N chars
+#   tool_called:      one of these tools appears in tool_calls
+#   action_opened:    true => at least one approval row was opened
+#   regex:            python regex must match the response
+
+version: 1
+
+tasks:
+
+  # ─── comms ────────────────────────────────────────────────────────────
+
+  - id: comms-001-list-emails
+    input: "show me unread emails from this week"
+    domain_in: [comms]
+    text_min_length: 8
+
+  - id: comms-002-reply
+    input: "reply to sarah saying tuesday works"
+    domain_in: [comms]
+    text_min_length: 8
+    text_lacks: ["traceback", "exception"]
+
+  - id: comms-003-slack-dm
+    input: "dm alex on slack about the deploy"
+    domain_in: [comms]
+    text_min_length: 8
+
+  - id: comms-004-imessage
+    input: "text mom saying i'll call tonight"
+    domain_in: [comms]
+    text_min_length: 8
+
+  # ─── calendar ─────────────────────────────────────────────────────────
+
+  - id: cal-001-today
+    input: "what's on my calendar today"
+    domain_in: [calendar]
+    text_min_length: 4
+
+  - id: cal-002-find-free
+    input: "find 90 minutes free this week"
+    domain_in: [calendar]
+    text_min_length: 4
+
+  - id: cal-003-book
+    input: "book a meeting with sarah tuesday at 2pm for 1 hour"
+    domain_in: [calendar]
+    text_min_length: 4
+
+  # ─── code ─────────────────────────────────────────────────────────────
+
+  - id: code-001-repos
+    input: "show my github repos"
+    domain_in: [code]
+    text_min_length: 4
+
+  - id: code-002-summarize
+    input: "summarize what changed in rohflow recently"
+    domain_in: [code]
+    text_min_length: 4
+
+  - id: code-003-prs
+    input: "any open pull requests"
+    domain_in: [code]
+    text_min_length: 4
+
+  # ─── workspace (files/notion/linear) ──────────────────────────────────
+
+  - id: files-001-recent
+    input: "what files have i opened lately"
+    domain_in: [files]
+    text_min_length: 4
+
+  - id: notion-001-search
+    input: "search notion for photon"
+    domain_in: [notion]
+    text_min_length: 4
+
+  - id: linear-001-mine
+    input: "show my linear issues"
+    domain_in: [linear]
+    text_min_length: 4
+
+  - id: linear-002-read-ident
+    input: "show RO-42"
+    domain_in: [linear]
+    text_min_length: 4
+
+  # ─── actions ──────────────────────────────────────────────────────────
+
+  - id: actions-001-shell
+    input: "run `git status --short` in this repo"
+    domain_in: [actions]
+    tool_called: [shell.draft]
+    action_opened: true
+
+  - id: actions-002-file
+    input: "save a note titled todo with body 'ship slack and imessage'"
+    domain_in: [actions]
+    tool_called: [file.draft]
+    action_opened: true
+
+  - id: actions-003-browser-render
+    input: "open https://example.com and tell me what's on the page"
+    domain_in: [actions]
+    tool_called: [browser.draft]
+    action_opened: true
+
+  # ─── scheduler ────────────────────────────────────────────────────────
+
+  - id: sched-001-once
+    input: "in 2 hours, remind me to take the laundry out"
+    domain_in: [scheduler]
+    text_min_length: 4
+
+  - id: sched-002-cron
+    input: "every weekday at 9am, summarize my inbox and calendar"
+    domain_in: [scheduler]
+    text_min_length: 4
+
+  # ─── memory + chat ────────────────────────────────────────────────────
+
+  - id: memory-001-temporal
+    input: "what was i working on today"
+    domain_in: [memory, chat]
+    text_min_length: 4

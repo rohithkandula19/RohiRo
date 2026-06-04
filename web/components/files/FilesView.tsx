@@ -19,14 +19,16 @@ export function FilesView() {
 
   return (
     <div>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-1.5">
         {SOURCES.map((s) => (
           <button
             key={s}
             onClick={() => setSource(s)}
             className={
-              "rounded-button border border-hair px-3 py-1.5 text-[12px] " +
-              (source === s ? "border-accent bg-accent-soft text-accent" : "border-line text-ink-muted")
+              "rounded-[5px] border px-2.5 py-1 text-[12px] capitalize " +
+              (source === s
+                ? "border-accent/30 bg-accent-soft text-accent"
+                : "border-line bg-surface text-ink-muted hover:bg-surface-hover")
             }
           >
             {s}
@@ -34,17 +36,17 @@ export function FilesView() {
         ))}
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-card border border-hair border-line">
+      <div className="card mt-4 overflow-hidden">
         {files.map((f) => (
-          <div key={f.id} className="flex items-center justify-between border-b border-hair border-line-subtle bg-surface p-3 last:border-b-0">
-            <div className="font-mono text-[12.5px] text-ink">{f.name}</div>
+          <div key={f.id} className="flex items-center justify-between border-b border-line px-4 py-2.5 last:border-b-0 hover:bg-surface-hover">
+            <div className="text-[13px] text-ink">{f.name}</div>
             <div className="flex items-center gap-3">
-              <span className="chip">{f.source}</span>
-              <span className="kicker">{f.modified}</span>
+              <span className="chip capitalize">{f.source}</span>
+              <span className="text-[11.5px] text-ink-subtle">{f.modified}</span>
             </div>
           </div>
         ))}
-        {!files.length ? <div className="p-4 text-[13px] text-ink-subtle">no recent files.</div> : null}
+        {!files.length ? <div className="p-4 text-[13px] text-ink-subtle">No recent files.</div> : null}
       </div>
     </div>
   );

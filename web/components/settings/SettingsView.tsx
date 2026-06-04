@@ -20,18 +20,18 @@ export function SettingsView() {
   return (
     <div className="space-y-8">
       <section>
-        <div className="kicker mb-3">integrations</div>
-        <div className="overflow-hidden rounded-card border border-hair border-line">
+        <div className="section-title"><h3>Integrations</h3><span className="text-[11.5px] text-ink-subtle">{ints.length} total</span></div>
+        <div className="card overflow-hidden">
           {ints.map((i) => (
-            <div key={i.name} className="flex items-center justify-between border-b border-hair border-line-subtle bg-surface p-3 last:border-b-0">
+            <div key={i.name} className="flex items-center justify-between border-b border-line px-4 py-2.5 last:border-b-0">
               <div className="flex items-center gap-3">
-                <span className="font-mono text-[12.5px] text-ink">{i.name}</span>
-                {i.tier === 2 ? <span className="chip">tier 2</span> : null}
+                <span className="text-[13px] capitalize text-ink">{i.name.replace(/_/g, " ")}</span>
+                {i.tier === 2 ? <span className="chip chip-warn">Tier 2</span> : null}
               </div>
               <div className="flex items-center gap-3">
-                <span className="kicker">{i.connected ? "connected" : "off"}</span>
-                <span className={`h-1.5 w-1.5 rounded-full ${i.connected ? "bg-success" : "bg-ink-subtle"}`} />
-                <button className="btn-secondary px-3 py-1 text-[11px]">test</button>
+                <span className="label">{i.connected ? "Connected" : "Off"}</span>
+                <span className={"dot " + (i.connected ? "dot-ok" : "")} />
+                <button className="btn btn-ghost px-2 py-0.5 text-[11.5px]">Test</button>
               </div>
             </div>
           ))}
@@ -39,16 +39,14 @@ export function SettingsView() {
       </section>
 
       <section>
-        <div className="kicker mb-3">api keys</div>
-        <div className="overflow-hidden rounded-card border border-hair border-line">
+        <div className="section-title"><h3>API keys</h3><span className="text-[11.5px] text-ink-subtle">stored in keychain</span></div>
+        <div className="card overflow-hidden">
           {keys.map((k) => (
-            <div key={k.name} className="flex items-center justify-between border-b border-hair border-line-subtle bg-surface p-3 last:border-b-0">
+            <div key={k.name} className="flex items-center justify-between border-b border-line px-4 py-2.5 last:border-b-0">
               <span className="font-mono text-[12.5px] text-ink">{k.name}</span>
               <div className="flex items-center gap-3">
-                <span className="font-mono text-[11px] text-ink-muted">
-                  {k.configured ? `…${k.last4}` : "not set"}
-                </span>
-                <button className="btn-secondary px-3 py-1 text-[11px]">rotate</button>
+                <span className="font-mono text-[11.5px] text-ink-muted">{k.configured ? `…${k.last4}` : "not set"}</span>
+                <button className="btn btn-ghost px-2 py-0.5 text-[11.5px]">Rotate</button>
               </div>
             </div>
           ))}
@@ -56,15 +54,24 @@ export function SettingsView() {
       </section>
 
       <section>
-        <div className="kicker mb-3">models</div>
+        <div className="section-title"><h3>Models</h3></div>
         {models ? (
-          <div className="card grid grid-cols-3 gap-4 text-[13px]">
-            <div><div className="kicker">default</div><div className="mt-1 font-mono">{models.default}</div></div>
-            <div><div className="kicker">hard</div><div className="mt-1 font-mono">{models.hard}</div></div>
-            <div><div className="kicker">cheap</div><div className="mt-1 font-mono">{models.cheap}</div></div>
+          <div className="grid gap-3 md:grid-cols-3">
+            <ModelCard label="Default" value={models.default} />
+            <ModelCard label="Hard" value={models.hard} />
+            <ModelCard label="Cheap" value={models.cheap} />
           </div>
         ) : null}
       </section>
+    </div>
+  );
+}
+
+function ModelCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="card p-4">
+      <div className="label">{label}</div>
+      <div className="mt-1 font-mono text-[12.5px] text-ink">{value}</div>
     </div>
   );
 }
