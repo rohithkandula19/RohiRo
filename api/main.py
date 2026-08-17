@@ -9,7 +9,7 @@ from typing import AsyncIterator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.config import settings
+from api.config import secrets, settings
 from api.eval.voice_learner import learn_voice
 from api.listeners import email as email_listener, imessage as imessage_listener, telegram as telegram_listener
 from api.memory.autofetch import run_once as autofetch_run_once
@@ -142,6 +142,25 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# bearer auth on every /api/* route when remote_secret is configured.
+# unconfigured means open mode, which is only sane bound to 127.0.0.1;
+# setup_remote.sh sets the secret before suggesting a wider bind.
+# /webhooks/* stays out (signature-validated), /install and /health stay open.
+@app.middleware("http")
+async def _bearer_auth(request, call_next):
+    from fastapi.responses import JSONResponse
+
+    path = request.url.path
+    if request.method != "OPTIONS" and path.startswith("/api/"):
+        expected = secrets.get("remote_secret")
+        if expected:
+            auth = request.headers.get("authorization", "")
+            given = auth.split(None, 1)[1].strip() if auth.lower().startswith("bearer ") else ""
+            if given != expected:
+                return JSONResponse({"detail": "missing or bad bearer token"}, status_code=401)
+    return await call_next(request)
 
 
 @app.get("/health")

@@ -54,21 +54,30 @@ async def decide(
     *,
     decision: str,
     edit_note: Optional[str] = None,
-) -> None:
+) -> str:
+    """decide a pending action. compare-and-swap: only a pending row can be
+    decided, so concurrent decides cannot double-apply. returns one of
+    "applied", "already_<status>", "not_found".
+    """
     if decision not in {"approved", "rejected", "edited"}:
         raise ValueError(f"bad decision: {decision}")
 
-    row = await db.fetchrow(
-        "select tool, payload from action_log where id = $1",
-        action_id,
-    )
-
-    await db.execute(
-        "update action_log set status = $1, edit_note = $2, decided_at = now() where id = $3",
+    claimed = await db.fetchrow(
+        """update action_log set status = $1, edit_note = $2, decided_at = now()
+           where id = $3 and status = 'pending'
+           returning tool, payload""",
         decision,
         edit_note,
         action_id,
     )
+
+    if claimed is None:
+        current = await db.fetchrow("select status from action_log where id = $1", action_id)
+        if current is None:
+            return "not_found"
+        return f"already_{current['status']}"
+
+    row = claimed
 
     # capture for the voice learner (best-effort; never block the decision)
     if row:
@@ -90,11 +99,32 @@ async def decide(
         except Exception:
             log.warning("voice signal capture failed", action_id=str(action_id))
 
+    return "applied"
 
-async def mark_executed(action_id: uuid.UUID, *, error: Optional[str] = None) -> None:
+
+async def claim_for_execute(action_id: uuid.UUID) -> Optional[dict[str, Any]]:
+    """atomically claim an approved or edited action for execution. only one
+    caller can win the claim, so a send can never run twice. returns the row
+    needed to execute, or None if the action is not claimable."""
+    row = await db.fetchrow(
+        """update action_log set status = 'executing'
+           where id = $1 and status in ('approved', 'edited')
+           returning id, tool, payload, edit_note""",
+        action_id,
+    )
+    return dict(row) if row else None
+
+
+async def mark_executed(
+    action_id: uuid.UUID,
+    *,
+    error: Optional[str] = None,
+    result: Optional[dict[str, Any]] = None,
+) -> None:
     await db.execute(
-        "update action_log set status = $1, executed_at = now(), error = $2 where id = $3",
+        "update action_log set status = $1, executed_at = now(), error = $2, result = $3 where id = $4",
         "failed" if error else "executed",
         error,
+        json.dumps(result) if result is not None else None,
         action_id,
     )

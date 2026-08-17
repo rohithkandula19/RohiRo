@@ -267,26 +267,32 @@ async def send_message(handle: str, text: str) -> bool:
     return await asyncio.to_thread(_send_message, handle, text)
 
 
-def _send_message(handle: str, text: str) -> bool:
-    # escape for applescript
-    safe = text.replace("\\", "\\\\").replace('"', '\\"')
-    script = f'''
-tell application "Messages"
-    set targetService to 1st service whose service type = iMessage
-    set targetBuddy to buddy "{handle}" of targetService
-    send "{safe}" to targetBuddy
-end tell
+# handle and text arrive as argv, never interpolated into the script source.
+# a quote-bearing handle or body cannot break out into arbitrary applescript.
+_SEND_SCRIPT = '''
+on run argv
+    set theHandle to item 1 of argv
+    set theText to item 2 of argv
+    tell application "Messages"
+        set targetService to 1st service whose service type = iMessage
+        set targetBuddy to buddy theHandle of targetService
+        send theText to targetBuddy
+    end tell
+end run
 '''
+
+
+def _send_message(handle: str, text: str) -> bool:
     import subprocess
     try:
         r = subprocess.run(
-            ["osascript", "-e", script],
+            ["osascript", "-e", _SEND_SCRIPT, handle, text],
             capture_output=True, text=True, timeout=15,
         )
         if r.returncode != 0:
             log.warning("imessage send failed", stderr=r.stderr.strip())
             return False
         return True
-    except Exception as e:
+    except Exception:
         log.exception("imessage send error")
         return False

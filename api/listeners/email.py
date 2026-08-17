@@ -139,6 +139,16 @@ async def loop() -> None:
     if not gmail.configured():
         log.warning("gmail listener disabled — google not connected")
         return
+
+    # fail closed: without user_email the self-mail guard cannot work, so ro
+    # could draft replies to its own outgoing mail. refuse to start instead.
+    if not _ro_address_hint():
+        log.error(
+            "gmail listener refused to start — user_email not set. "
+            "run: keyring set ro user_email"
+        )
+        return
+
     log.info("gmail listener started", poll_s=POLL_INTERVAL_S)
     while True:
         try:

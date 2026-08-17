@@ -143,30 +143,72 @@ async def due_now() -> list[Schedule]:
 # ----- fire -----
 
 
+MAX_CONSECUTIVE_FAILURES = 3
+
+
 async def fire(s: Schedule) -> dict[str, Any]:
-    """run a schedule. updates last_run_at, computes next_run_at, notifies."""
+    """run a schedule with a claim-before-fire.
+
+    the claim advances next_run_at (cron) or disables the row (once) BEFORE the
+    run, via compare-and-swap on next_run_at <= now(). a crash mid-run skips
+    that occurrence instead of re-firing it on restart, and two loops can never
+    fire the same occurrence twice. a broken cron spec disables the schedule
+    instead of refiring every tick.
+    """
+    if s.kind == "once":
+        claimed = await db.fetchrow(
+            """update schedules set enabled=false, last_run_at=now(), updated_at=now()
+               where id=$1 and enabled and next_run_at <= now() returning id""",
+            uuid.UUID(s.id),
+        )
+    else:
+        try:
+            next_at = compute_next(kind=s.kind, spec=s.spec, tz=s.timezone)
+        except Exception as e:
+            log.exception("scheduler compute_next failed, disabling", schedule=s.id)
+            await db.execute(
+                "update schedules set enabled=false, last_result=$2, updated_at=now() where id=$1",
+                uuid.UUID(s.id), f"(disabled: bad spec: {e})"[:8000],
+            )
+            _notify(title="ro · schedule disabled", message=f"{s.title[:80]}: bad spec")
+            return {"id": s.id, "result": "disabled: bad spec"}
+        claimed = await db.fetchrow(
+            """update schedules set last_run_at=now(), next_run_at=$2, updated_at=now()
+               where id=$1 and enabled and next_run_at <= now() returning id""",
+            uuid.UUID(s.id), next_at,
+        )
+
+    if claimed is None:
+        # another loop claimed this occurrence, or it was disabled meanwhile.
+        return {"id": s.id, "result": "skipped: already claimed"}
+
     sid = uuid.uuid4()
+    failed = False
     try:
         result = await run_supervisor(session_id=sid, user_text=s.text)
         text = (result.get("text") or "").strip()
     except Exception as e:
         log.exception("scheduler fire failed", schedule=s.id)
         text = f"(failed: {e})"
+        failed = True
 
-    # update schedule
-    if s.kind == "once":
-        await db.execute(
-            "update schedules set enabled=false, last_run_at=now(), last_result=$2, updated_at=now() where id=$1",
+    if failed:
+        row = await db.fetchrow(
+            """update schedules set last_result=$2, consecutive_failures = consecutive_failures + 1, updated_at=now()
+               where id=$1 returning consecutive_failures""",
             uuid.UUID(s.id), text[:8000],
         )
+        if row and row["consecutive_failures"] >= MAX_CONSECUTIVE_FAILURES:
+            await db.execute(
+                "update schedules set enabled=false, updated_at=now() where id=$1",
+                uuid.UUID(s.id),
+            )
+            _notify(title="ro · schedule disabled",
+                    message=f"{s.title[:80]}: {row['consecutive_failures']} failures in a row")
     else:
-        try:
-            next_at = compute_next(kind=s.kind, spec=s.spec, tz=s.timezone)
-        except Exception:
-            next_at = datetime.now(tz=timezone.utc)
         await db.execute(
-            "update schedules set last_run_at=now(), next_run_at=$2, last_result=$3, updated_at=now() where id=$1",
-            uuid.UUID(s.id), next_at, text[:8000],
+            "update schedules set last_result=$2, consecutive_failures=0, updated_at=now() where id=$1",
+            uuid.UUID(s.id), text[:8000],
         )
 
     # log + notify
@@ -184,13 +226,18 @@ async def fire(s: Schedule) -> dict[str, Any]:
     return {"id": s.id, "result": text}
 
 
+_NOTIFY_SCRIPT = '''
+on run argv
+    display notification (item 2 of argv) with title (item 1 of argv)
+end run
+'''
+
+
 def _notify(*, title: str, message: str) -> None:
-    """macos native notification via osascript. silent failure."""
+    """macos native notification via osascript. argv-passed, silent failure."""
     try:
-        safe_title = title.replace('"', "'")
-        safe_msg = message.replace('"', "'").replace("\n", " ")
         subprocess.run(
-            ["osascript", "-e", f'display notification "{safe_msg}" with title "{safe_title}"'],
+            ["osascript", "-e", _NOTIFY_SCRIPT, title[:120], message.replace("\n", " ")[:240]],
             timeout=5, capture_output=True, check=False,
         )
     except Exception:

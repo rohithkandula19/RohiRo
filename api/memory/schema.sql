@@ -138,6 +138,47 @@ create table if not exists action_log (
 create index if not exists action_log_status_idx on action_log (status, created_at);
 create index if not exists action_log_session_idx on action_log (session_id);
 
+-- provider result of an executed action (message id etc). additive.
+alter table action_log add column if not exists result jsonb;
+
+-- seen_keys: dedupe + watermarks for listeners and autofetch.
+-- (source, external_id) is the identity; on conflict do nothing depends on it.
+create table if not exists seen_keys (
+    source text not null,
+    external_id text not null,
+    first_seen_at timestamptz not null default now(),
+    primary key (source, external_id)
+);
+
+-- schedules: cron and one-shot routines the scheduler engine fires.
+create table if not exists schedules (
+    id uuid primary key default gen_random_uuid(),
+    kind text not null,                    -- cron | once
+    spec text not null,
+    text text not null,
+    title text not null default '',
+    timezone text not null default 'UTC',
+    enabled boolean not null default true,
+    last_run_at timestamptz,
+    next_run_at timestamptz not null,
+    last_result text,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+);
+create index if not exists schedules_due_idx on schedules (enabled, next_run_at);
+
+-- consecutive failure counter. scheduler disables a schedule at 3.
+alter table schedules add column if not exists consecutive_failures integer not null default 0;
+
+-- stable session per chat channel so conversations keep context.
+create table if not exists channel_sessions (
+    channel text not null,                 -- imessage | telegram | email | whatsapp
+    chat_key text not null,                -- chat guid / chat_id / thread key
+    session_id uuid not null default gen_random_uuid(),
+    created_at timestamptz not null default now(),
+    primary key (channel, chat_key)
+);
+
 -- the trigger that keeps updated_at fresh.
 create or replace function touch_updated_at() returns trigger as $$
 begin

@@ -50,6 +50,7 @@ done
 
 say "applying memory schema"
 docker exec -i ro-postgres psql -U ro -d ro < api/memory/schema.sql >/dev/null
+docker exec -i ro-postgres psql -U ro -d ro < api/memory/tree_schema.sql >/dev/null
 
 say "starting langfuse for traces"
 docker compose up -d langfuse-db langfuse || warn "langfuse failed to start, traces will be off"

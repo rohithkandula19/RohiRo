@@ -83,6 +83,8 @@ async def _maybe_reply(u: tg.TGUpdate) -> Optional[str]:
 async def run_once() -> dict[str, int]:
     if not tg.configured():
         return {"skipped": 1}
+    if tg.owner_id() is None:
+        return {"skipped": 1, "reason_owner_unset": 1}
 
     offset = await _get_offset()
     updates = await tg.get_updates(offset=offset, timeout=0, limit=50)
@@ -135,6 +137,15 @@ async def loop() -> None:
 
     if not tg.configured():
         log.warning("telegram listener disabled — no telegram_bot_token in keychain")
+        return
+
+    # fail closed: without an owner id, anyone who finds the bot could talk to
+    # ro (claude spend, memory pollution, injection surface). refuse to start.
+    if tg.owner_id() is None:
+        log.error(
+            "telegram listener refused to start — telegram_owner_id not set. "
+            "run: keyring set ro telegram_owner_id"
+        )
         return
 
     # warm: who is the bot?

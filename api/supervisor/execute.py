@@ -20,24 +20,29 @@ from api.supervisor import approval
 
 
 async def execute(action_id: uuid.UUID) -> dict[str, Any]:
-    row = await db.fetchrow(
-        "select id, tool, payload, status, edit_note from action_log where id = $1",
-        action_id,
-    )
-    if not row:
-        raise ValueError(f"action {action_id} not found")
-    if row["status"] != "approved":
-        raise ValueError(f"action {action_id} is {row['status']}, not approved")
+    """execute an approved or edited action exactly once.
 
-    payload = row["payload"]
+    the claim is a compare-and-swap to status 'executing': concurrent callers
+    race for the claim and exactly one wins. a crash after the provider send
+    leaves the row in 'executing', which is never re-claimable, so a retry can
+    never double-send. the row surfaces in the ui as stuck-executing with the
+    provider result missing, which is honest.
+    """
+    claimed = await approval.claim_for_execute(action_id)
+    if claimed is None:
+        current = await db.fetchrow("select status from action_log where id = $1", action_id)
+        status = current["status"] if current else "missing"
+        return {"ok": False, "error": f"action is {status}, not executable", "status": status}
+
+    payload = claimed["payload"]
     if isinstance(payload, str):
         payload = json.loads(payload)
-    edit_note = row.get("edit_note") if isinstance(row, dict) else row["edit_note"]
-    tool = row["tool"]
+    edit_note = claimed["edit_note"]
+    tool = claimed["tool"]
 
     try:
         result = await _dispatch(tool, payload, edit_note)
-        await approval.mark_executed(action_id)
+        await approval.mark_executed(action_id, result=result)
         # auto-capture: write the act into the tree
         try:
             await tree_write(
@@ -86,7 +91,7 @@ def _describe(tool: str, payload: dict, result: dict) -> str:
         target = payload.get("channel_name") or payload.get("channel_id")
         return f"slack → {target}: {(payload.get('body') or '')[:100]}"
     if tool == "imessage.send":
-        return f"text → {payload.get('recipient','?')}: {(payload.get('body') or '')[:100]}"
+        return f"text → {payload.get('handle','?')}: {(payload.get('body') or '')[:100]}"
     if tool == "telegram.send":
         who = payload.get('to_name') or payload.get('chat_id','?')
         return f"telegram → {who}: {(payload.get('body') or '')[:100]}"
