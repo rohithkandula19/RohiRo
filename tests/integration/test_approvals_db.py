@@ -11,30 +11,53 @@ import json
 import uuid
 
 import pytest
+import pytest_asyncio
 
-pytestmark = pytest.mark.asyncio
+# one event loop for the whole module: the db pool is a module singleton and
+# a per-test loop would strand it after the first test. the fixture must
+# share that loop too, or the pool opens on a loop the tests never run on.
+pytestmark = pytest.mark.asyncio(loop_scope="module")
 
 
 async def _pg_up() -> bool:
     try:
         from api.memory.db import db
         await asyncio.wait_for(db.pg(), timeout=3)
-        # ensure the new ddl exists (idempotent)
+    except Exception:
+        return False
+    # best-effort schema apply (idempotent). in docker the ro role is
+    # superuser and this fully provisions a fresh db; on a brew postgres the
+    # create-extension lines need superuser, so failures here are tolerated —
+    # the tables were provisioned out of band and the probe below decides.
+    try:
         import pathlib
         schema = pathlib.Path(__file__).resolve().parents[2] / "api" / "memory" / "schema.sql"
         pool = await db.pg()
         async with pool.acquire() as con:
             await con.execute(schema.read_text())
+    except Exception:
+        pass
+    try:
+        from api.memory.db import db as db2
+        await db2.fetchrow("select 1 from action_log limit 1")
         return True
     except Exception:
         return False
 
 
-@pytest.fixture()
+@pytest_asyncio.fixture(loop_scope="module")
 async def pg():
+    # the db pool is a process-wide singleton; if another test module opened
+    # it on a different event loop, reset so it reopens on this module's loop.
+    from api.memory.db import db
+    try:
+        await asyncio.wait_for(db.close(), timeout=2)
+    except Exception:
+        pass
+    if hasattr(db, "_pg_pool"):
+        db._pg_pool = None
     if not await _pg_up():
         pytest.skip("postgres not reachable — start the stack: docker compose up -d")
-    from api.memory.db import db
     yield db
 
 

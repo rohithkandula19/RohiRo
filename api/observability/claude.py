@@ -123,4 +123,10 @@ class ClaudeClient:
             pass
 
 
+def configured() -> bool:
+    """is the anthropic key present? background loops gate on this so a
+    keyless install stays quiet instead of tracebacking every interval."""
+    return bool(secrets.get("anthropic_api_key"))
+
+
 claude_client = ClaudeClient()

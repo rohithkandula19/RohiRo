@@ -45,7 +45,16 @@ from api.routes import (
 
 async def _memory_summarizer_loop():
     """run the tree summarizer every 15 min as a background task."""
+    from api.observability import claude as claude_mod
+    warned = False
     while True:
+        if not claude_mod.configured():
+            if not warned:
+                log.warning("memory tree summarizer idle — no anthropic_api_key in keychain")
+                warned = True
+            await asyncio.sleep(15 * 60)
+            continue
+        warned = False
         try:
             res = await summarize_pending(limit_hours=24)
             if res.get("hours_processed"):
@@ -71,8 +80,12 @@ async def _scheduler_loop():
 
 async def _entity_extractor_loop():
     """every 30 min: pull recent raw_events and extract entities."""
+    from api.observability import claude as claude_mod
     await asyncio.sleep(45)
     while True:
+        if not claude_mod.configured():
+            await asyncio.sleep(30 * 60)
+            continue
         try:
             res = await entities_run(limit=80)
             if res.get("entities_created") or res.get("entities_updated"):
@@ -84,8 +97,12 @@ async def _entity_extractor_loop():
 
 async def _voice_learner_loop():
     """re-derive learned_voice every hour. cheap when no new edits."""
+    from api.observability import claude as claude_mod
     await asyncio.sleep(60)  # let the api come up first
     while True:
+        if not claude_mod.configured():
+            await asyncio.sleep(60 * 60)
+            continue
         try:
             res = await learn_voice()
             if res:

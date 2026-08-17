@@ -54,6 +54,9 @@ def list_playbooks() -> list[dict[str, Any]]:
     PLAYBOOK_DIR.mkdir(parents=True, exist_ok=True)
     out = []
     for p in sorted(PLAYBOOK_DIR.glob("*.md")):
+        # only valid slugs are runnable; skip README and anything else
+        if not _slug_ok(p.stem):
+            continue
         body = p.read_text(errors="replace")
         first = next((ln.strip("# ").strip() for ln in body.splitlines() if ln.strip()), p.stem)
         out.append({
