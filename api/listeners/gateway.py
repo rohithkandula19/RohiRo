@@ -75,6 +75,15 @@ async def handle_inbound(
     (email keeps its draft-and-approve flow).
     """
     session_id = await session_for(channel, chat_key)
+
+    # event triggers: fire matching playbooks in the background before the
+    # conversational turn, so trigger work never delays the reply.
+    try:
+        from api import triggers
+        await triggers.match_and_fire(channel, text)
+    except Exception:
+        log.warning("trigger matching failed", channel=channel)
+
     budget.set_run(f"channel:{channel}")
     try:
         result = await run_supervisor(session_id=session_id, user_text=text)

@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/editorial/PageHeader";
 import { PlaybooksView } from "@/components/playbooks/PlaybooksView";
+import { TriggersCard } from "@/components/playbooks/TriggersCard";
 
 export default function PlaybooksPage() {
   return (
@@ -7,9 +8,10 @@ export default function PlaybooksPage() {
       <PageHeader
         kicker="teach ro"
         title="playbooks."
-        subtitle="describe a task once. run it on demand or on a schedule. steps chain, approvals still gate."
+        subtitle="describe a task once. run it on demand, on a schedule, or when a matching event arrives."
       />
       <PlaybooksView />
+      <TriggersCard />
     </div>
   );
 }

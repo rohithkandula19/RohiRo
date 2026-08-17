@@ -170,6 +170,18 @@ create index if not exists schedules_due_idx on schedules (enabled, next_run_at)
 -- consecutive failure counter. scheduler disables a schedule at 3.
 alter table schedules add column if not exists consecutive_failures integer not null default 0;
 
+-- triggers: when an inbound event matches, run a playbook.
+create table if not exists triggers (
+    id uuid primary key default gen_random_uuid(),
+    channel text not null default '*',      -- imessage | telegram | email | whatsapp | *
+    pattern text not null,                  -- case-insensitive substring or /regex/
+    playbook text not null,                 -- playbook name to run
+    enabled boolean not null default true,
+    last_fired_at timestamptz,
+    fire_count integer not null default 0,
+    created_at timestamptz not null default now()
+);
+
 -- push_subscriptions: web push targets for the localhost ui.
 create table if not exists push_subscriptions (
     endpoint text primary key,
