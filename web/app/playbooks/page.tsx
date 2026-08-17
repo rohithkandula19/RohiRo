@@ -1,6 +1,7 @@
 import { PageHeader } from "@/components/editorial/PageHeader";
 import { PlaybooksView } from "@/components/playbooks/PlaybooksView";
 import { TriggersCard } from "@/components/playbooks/TriggersCard";
+import { RoutinesCard } from "@/components/playbooks/RoutinesCard";
 
 export default function PlaybooksPage() {
   return (
@@ -12,6 +13,7 @@ export default function PlaybooksPage() {
       />
       <PlaybooksView />
       <TriggersCard />
+      <RoutinesCard />
     </div>
   );
 }

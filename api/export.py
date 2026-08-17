@@ -78,9 +78,32 @@ async def export() -> Path:
     return out
 
 
+def prune(keep: int = 7) -> list[str]:
+    """keep the newest n exports, delete the rest. returns removed names."""
+    if not EXPORT_DIR.exists():
+        return []
+    exports = sorted(EXPORT_DIR.glob("ro-export-*.tar.gz"),
+                     key=lambda p: p.stat().st_mtime, reverse=True)
+    removed = []
+    for old in exports[max(1, keep):]:
+        old.unlink()
+        removed.append(old.name)
+    return removed
+
+
 async def main() -> None:
+    import sys
     path = await export()
     print(f"exported: {path}")
+    if "--rotate" in sys.argv:
+        try:
+            idx = sys.argv.index("--rotate")
+            keep = int(sys.argv[idx + 1]) if len(sys.argv) > idx + 1 else 7
+        except (ValueError, IndexError):
+            keep = 7
+        removed = prune(keep)
+        if removed:
+            print(f"rotated out: {', '.join(removed)}")
     print("restore instructions are inside (RESTORE.md). secrets stay in your keychain.")
 
 

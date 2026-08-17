@@ -138,3 +138,12 @@ what is fully runnable:
 - body ledger ingestion: api/integrations/health_import.py streams apple health export.xml (hundreds of mb) via iterparse into health_samples with an allowlist. weekly_summary for the digest later. waiting on an export file, by design.
 - focus-aware delivery: api/observability/focus.py reads the macos focus assertions file best-effort plus a quiet_hours preference. digests defer during focus or quiet hours; approval pings stay urgent and always land.
 - clipboard memory: opt-in menubar toggle, 2s pasteboard polling, secret-shaped text never stored (prefix and password-shape heuristics err toward skipping), rows local with fts search.
+
+## 2026-08-17 phase 7, control plane
+
+- slash commands: /status /loops /spend /sent /pause /resume answered instantly in any channel before triggers and the model. zero spend, zero latency. unknown slash text still falls through to the model.
+- /pause: paused_until preference. scheduler fires and trigger matching respect it; user chat never pauses. approvals still land (deciding is not background work).
+- ro doctor: every dependency checked with its exact fix printed. the go-live dry run.
+- backups: nightly.sh now also writes a local ro export with keep-7 rotation, alongside the encrypted offsite dump.
+- routines card: schedules visible and manageable on /playbooks (plain task, playbook:<name>, bot:<name>: task).
+- decision: this closes feature development until the system is in real use. control-plane features were the last category that does not bet on unobserved usage. next code change should be motivated by a real session, a failing eval, or a red light on /settings.

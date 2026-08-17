@@ -87,6 +87,77 @@ def export() -> None:
 
 
 @app.command()
+def doctor() -> None:
+    """diagnose everything: keys, permissions, services, models. the
+    go-live dry run — every red line comes with its fix."""
+
+    import shutil as _shutil
+
+    def check(label: str, ok: bool, fix: str = "") -> None:
+        mark = "[green]✓[/green]" if ok else "[red]✗[/red]"
+        line = f"{mark} {label}"
+        if not ok and fix:
+            line += f"  [dim]→ {fix}[/dim]"
+        console.print(line)
+
+    async def run_checks() -> None:
+        from api.config import secrets
+
+        console.print("[bold]ro doctor[/bold]\n")
+
+        # keys
+        for key, why in [
+            ("anthropic_api_key", "the brain. console.anthropic.com/settings/keys"),
+            ("imessage_channel", "your own number. keyring set ro imessage_channel"),
+            ("user_email", "keyring set ro user_email"),
+            ("telegram_bot_token", "optional. @BotFather"),
+            ("openai_api_key", "optional: embeddings + voice fallback"),
+            ("vapid_private_key", "uv run python -m api.integrations.webpush --generate"),
+        ]:
+            check(f"keychain: {key}", bool(secrets.get(key)), why)
+
+        # database
+        pg_ok = False
+        try:
+            from api.memory.db import db
+            await asyncio.wait_for(db.pg(), timeout=3)
+            await db.fetchrow("select 1 from action_log limit 1")
+            pg_ok = True
+        except Exception:
+            pass
+        check("postgres reachable + schema applied", pg_ok,
+              "brew services start postgresql@17 (port 5435) or docker compose up -d, then scripts/bootstrap.sh")
+
+        # api
+        api_ok = False
+        try:
+            import httpx as _httpx
+            api_ok = _httpx.get("http://127.0.0.1:8000/health", timeout=3).status_code == 200
+        except Exception:
+            pass
+        check("api answering on :8000", api_ok, "uv run ro up")
+
+        # mac permissions
+        from api.integrations import imessage as imsg
+        check("chat.db readable (full disk access)", imsg.configured(),
+              "System Settings → Privacy & Security → Full Disk Access → your terminal")
+
+        # local tier
+        check("ffmpeg (local whisper)", _shutil.which("ffmpeg") is not None, "brew install ffmpeg")
+        ollama_ok = False
+        try:
+            import httpx as _httpx
+            ollama_ok = _httpx.get("http://127.0.0.1:11434/api/tags", timeout=2).status_code == 200
+        except Exception:
+            pass
+        check("ollama (local model tier)", ollama_ok, "optional: brew install ollama && ollama pull llama3.2:3b")
+
+        console.print("\n[dim]red lines block the matching feature only. ./scripts/go_live.sh fixes the required ones interactively.[/dim]")
+
+    asyncio.run(run_checks())
+
+
+@app.command()
 def playbooks() -> None:
     """list saved playbooks."""
 

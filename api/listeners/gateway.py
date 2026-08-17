@@ -119,6 +119,18 @@ async def handle_inbound(
     """
     session_id = await session_for(channel, chat_key)
 
+    # slash commands: instant control-plane answers, no model, no spend.
+    try:
+        from api.listeners import commands
+        cmd_reply = await commands.handle(text)
+        if cmd_reply is not None:
+            if reply is not None:
+                await record_sent(channel, chat_key, cmd_reply)
+                await reply(cmd_reply)
+            return {"session_id": str(session_id), "text": cmd_reply}
+    except Exception:
+        log.warning("command handling failed", channel=channel)
+
     # event triggers: fire matching playbooks in the background before the
     # conversational turn, so trigger work never delays the reply.
     try:

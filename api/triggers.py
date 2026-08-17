@@ -89,6 +89,13 @@ async def match_and_fire(channel: str, text: str) -> int:
         log.warning("trigger lookup failed", channel=channel)
         return 0
 
+    try:
+        from api.listeners import commands
+        if await commands.is_paused():
+            return 0
+    except Exception:
+        pass
+
     fired = 0
     for r in rows:
         if not _matches(r["pattern"], text):

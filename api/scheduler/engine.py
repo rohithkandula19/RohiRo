@@ -157,6 +157,13 @@ async def fire(s: Schedule) -> dict[str, Any]:
     instead of refiring every tick. the budget guard vetoes runs (and re-fires)
     once the daily token budget is spent.
     """
+    try:
+        from api.listeners import commands
+        if await commands.is_paused():
+            return {"id": s.id, "result": "skipped: paused (/resume to undo)"}
+    except Exception:
+        pass
+
     allowed, why = await budget.allow_run("routine")
     if not allowed:
         log.warning("scheduler run vetoed by budget", schedule=s.id, why=why)

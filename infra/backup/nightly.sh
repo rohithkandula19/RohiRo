@@ -41,3 +41,7 @@ if command -v gcloud >/dev/null; then
 else
     echo "gcloud not installed, encrypted backup is at $ENC"
 fi
+
+# local estate export with keep-7 rotation (in addition to the encrypted
+# offsite dump above). best-effort: a failed export never fails the backup.
+uv run python -m api.export --rotate 7 || true
