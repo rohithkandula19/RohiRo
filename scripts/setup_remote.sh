@@ -22,8 +22,8 @@ echo "  $SECRET"
 echo
 echo "── one-page iOS install wizard. open on your iPhone: ──"
 ENC=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$SECRET")
-[ -n "$LAN_IP" ] && echo "  LAN       : http://$LAN_IP:8000/install/ios.html?token=$ENC"
-[ -n "$TS_IP" ]  && echo "  Tailscale : http://$TS_IP:8000/install/ios.html?token=$ENC"
+[ -n "$LAN_IP" ] && echo "  LAN       : http://$LAN_IP:8000/install/ios.html  (enter the token shown above when prompted)"
+[ -n "$TS_IP" ]  && echo "  Tailscale : http://$TS_IP:8000/install/ios.html  (enter the token shown above when prompted)"
 echo
 echo "── api must bind 0.0.0.0 to be reachable. one-shot:"
 echo "    RO_API_HOST=0.0.0.0 RO_REMOTE_SECRET_OK=1 uv run uvicorn api.main:app --host 0.0.0.0 --port 8000"

@@ -157,8 +157,8 @@ async def ios_install(request: Request, token: str = "", base: str = "") -> HTML
     token_note = (
         "" if token else
         '<p class="lead" style="margin: 8px 0 0; font-size: 12.5px;">'
-        'No token in this URL. Run <code>./scripts/setup_remote.sh</code> on your mac to generate one, '
-        'then re-open this page with <code>?token=&lt;value&gt;</code>.</p>'
+        'Run <code>./scripts/setup_remote.sh</code> on your mac and paste the token it prints '
+        'into the Shortcut\'s Authorization header. Keep tokens out of URLs.</p>'
     )
 
     warn_card = ""
