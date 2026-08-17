@@ -6,8 +6,15 @@ import json
 import uuid
 from typing import Any, Optional
 
+from contextvars import ContextVar
+
 from api.memory.db import db
 from api.observability.logging import log
+
+# shadow mode: while true in this async context, opened approvals land as
+# status='simulated' — never claimable by execute, never pinging the phone.
+# the playbook shadow runner sets it; nothing else should.
+simulate: ContextVar[bool] = ContextVar("ro_simulate", default=False)
 
 
 async def open_approval(
@@ -19,6 +26,14 @@ async def open_approval(
     payload: dict[str, Any],
     requires_approval: bool = True,
 ) -> uuid.UUID:
+    if simulate.get():
+        row = await db.fetchrow(
+            """insert into action_log (session_id, domain, tool, description, payload, requires_approval, status)
+               values ($1, $2, $3, $4, $5, $6, 'simulated') returning id""",
+            session_id, domain, tool, description, json.dumps(payload), requires_approval,
+        )
+        return row["id"]
+
     row = await db.fetchrow(
         """insert into action_log (session_id, domain, tool, description, payload, requires_approval)
            values ($1, $2, $3, $4, $5, $6) returning id""",

@@ -40,6 +40,22 @@ async def execute(action_id: uuid.UUID) -> dict[str, Any]:
     edit_note = claimed["edit_note"]
     tool = claimed["tool"]
 
+    # egress receipt, minted at the approval choke point before bytes leave.
+    try:
+        from api.observability import ledger
+        await ledger.record(
+            basis="approval",
+            channel=_source_for_tool(tool),
+            destination=str(
+                payload.get("to") or payload.get("handle") or payload.get("chat_id")
+                or payload.get("channel_id") or payload.get("server") or payload.get("url") or ""
+            ),
+            payload={"tool": tool, "payload": payload, "edit_note": edit_note},
+            action_id=action_id,
+        )
+    except Exception:
+        log.warning("egress ledger record failed", tool=tool)
+
     try:
         result = await _dispatch(tool, payload, edit_note)
         await approval.mark_executed(action_id, result=result)
@@ -330,5 +346,12 @@ async def _dispatch(tool: str, payload: dict[str, Any], edit_note: Any) -> dict[
         )
         return {"server": payload["server"], "tool": payload["mcp_tool"],
                 "content": res["content"], "is_error": res["is_error"]}
+
+    if tool == "profile.update_learned_style":
+        # glass-box learning: applies only after the card was approved.
+        rules = (edit_note.strip() if edit_note and edit_note.strip() else payload["rules_md"])
+        from api.eval.self_review import _write_learned_style
+        await _write_learned_style(rules)
+        return {"applied": True, "rules_chars": len(rules)}
 
     raise ValueError(f"unknown tool: {tool}")

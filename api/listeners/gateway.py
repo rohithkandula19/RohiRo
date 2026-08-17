@@ -148,6 +148,10 @@ async def handle_inbound(
     if reply is not None and out:
         try:
             await record_sent(channel, chat_key, out)
+            from api.observability import ledger
+            await ledger.record(
+                basis="self-channel", channel=channel, destination=chat_key, payload=out,
+            )
             await reply(out)
         except Exception:
             log.exception("gateway reply failed", channel=channel)

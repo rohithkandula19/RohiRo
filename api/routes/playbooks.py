@@ -53,6 +53,16 @@ async def run(name: str) -> dict[str, Any]:
         raise HTTPException(404, str(e)) from e
 
 
+@router.post("/{name}/shadow")
+async def shadow(name: str) -> dict[str, Any]:
+    """dry run: real supervisor, zero egress. every outward action lands as
+    a simulated card so you can review the tape before arming it."""
+    try:
+        return await pb.run_playbook(name, shadow=True)
+    except ValueError as e:
+        raise HTTPException(404, str(e)) from e
+
+
 class DraftIn(BaseModel):
     description: str = Field(min_length=10, max_length=8000)
 

@@ -109,8 +109,14 @@ def _split_steps(body: str) -> list[str]:
     return steps[:MAX_STEPS]
 
 
-async def run_playbook(name: str) -> dict[str, Any]:
-    """run a playbook end to end. returns per-step results."""
+async def run_playbook(name: str, *, shadow: bool = False) -> dict[str, Any]:
+    """run a playbook end to end. returns per-step results.
+
+    shadow=True is a dry run against the real supervisor: every outward
+    action lands as a simulated approval card (never claimable, zero
+    egress), so you can review exactly what the playbook would have done
+    before arming it.
+    """
     body = get_playbook(name)
     if body is None:
         raise ValueError(f"playbook not found: {name}")
@@ -119,7 +125,10 @@ async def run_playbook(name: str) -> dict[str, Any]:
     if not allowed:
         return {"name": name, "ran": False, "reason": why, "steps": []}
 
-    budget.set_run(f"playbook:{name}")
+    budget.set_run(f"playbook:{name}" + (":shadow" if shadow else ""))
+    if shadow:
+        from api.supervisor import approval
+        approval.simulate.set(True)
 
     # stable session per playbook so repeated runs keep context
     row = await db.fetchrow(
@@ -148,5 +157,16 @@ async def run_playbook(name: str) -> dict[str, Any]:
             # halt on failure, report what completed. partial honesty.
             break
 
-    return {"name": name, "ran": True, "steps": results,
-            "completed": sum(1 for r in results if r.get("ok")), "total": len(steps)}
+    out: dict[str, Any] = {"name": name, "ran": True, "shadow": shadow, "steps": results,
+                           "completed": sum(1 for r in results if r.get("ok")), "total": len(steps)}
+    if shadow:
+        rows = await db.fetch(
+            """select tool, description, payload from action_log
+               where session_id = $1 and status = 'simulated'
+               order by created_at asc""",
+            session_id,
+        )
+        out["would_have_done"] = [
+            {"tool": r["tool"], "description": r["description"]} for r in rows
+        ]
+    return out

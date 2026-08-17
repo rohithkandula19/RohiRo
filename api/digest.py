@@ -219,6 +219,8 @@ async def deliver(markdown: str) -> dict[str, bool]:
         channel = (secrets.get("imessage_channel") or "").strip()
         if channel and imsg.configured():
             await gateway.record_sent("imessage", channel, text)
+            from api.observability import ledger
+            await ledger.record(basis="digest", channel="imessage", destination=channel, payload=text)
             delivered["imessage"] = await imsg.send_message(channel, text)
     except Exception:
         log.warning("digest imessage delivery failed")

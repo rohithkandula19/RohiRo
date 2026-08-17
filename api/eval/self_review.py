@@ -133,8 +133,19 @@ async def run() -> None:
         )
         rules = "".join(b.text for b in resp.content if b.type == "text").strip()
         if rules:
-            await _write_learned_style(rules)
-            learned = rules
+            # glass-box learning: the rules arrive as an approval card with
+            # the evidence attached, exactly like an outbound draft. nothing
+            # rewrites the profile until you say yes.
+            import uuid as _uuid
+            from api.supervisor import approval
+            await approval.open_approval(
+                session_id=_uuid.uuid4(),
+                domain="memory",
+                tool="profile.update_learned_style",
+                description=f"update learned style rules from {len(signals)} edit/reject signals this week",
+                payload={"rules_md": rules, "evidence_count": len(signals)},
+            )
+            learned = f"proposed (awaiting your approval):\n{rules}"
 
     from api.eval.voice_learner import learn_voice
     try:

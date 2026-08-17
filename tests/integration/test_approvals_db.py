@@ -157,6 +157,42 @@ async def test_sent_tracking_roundtrip(pg) -> None:
     assert await gateway.was_recently_sent("imessage", "self", text)
 
 
+async def test_egress_ledger_chain(pg) -> None:
+    from api.observability import ledger
+    await ledger.record(basis="self-channel", channel="imessage", destination="self", payload="hello")
+    await ledger.record(basis="approval", channel="gmail", destination="a@b.c", payload={"body": "x"})
+    verdict = await ledger.verify()
+    assert verdict["ok"], verdict
+    assert verdict["entries"] >= 2
+
+
+async def test_ledger_detects_tamper(pg) -> None:
+    from api.observability import ledger
+    await ledger.record(basis="digest", channel="telegram", destination="1", payload="d")
+    row = await pg.fetchrow("select id from egress_ledger order by id desc limit 1")
+    await pg.execute("update egress_ledger set destination = 'evil' where id = $1", row["id"])
+    verdict = await ledger.verify()
+    assert not verdict["ok"]
+    # restore so later runs verify clean
+    await pg.execute("update egress_ledger set destination = '1' where id = $1", row["id"])
+
+
+async def test_simulated_approvals_never_execute(pg) -> None:
+    from api.supervisor import approval, execute as execute_mod
+    token = approval.simulate.set(True)
+    try:
+        aid = await _open(pg)
+    finally:
+        approval.simulate.reset(token)
+    row = await pg.fetchrow("select status from action_log where id = $1", aid)
+    assert row["status"] == "simulated"
+    # not decidable, not claimable
+    outcome = await approval.decide(aid, decision="approved")
+    assert outcome == "already_simulated"
+    result = await execute_mod.execute(aid)
+    assert result["ok"] is False
+
+
 async def test_budget_cap_refuses(pg) -> None:
     from api.observability import budget
     # set a tiny cap, burn it, expect refusal
