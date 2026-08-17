@@ -125,6 +125,8 @@ def _describe(tool: str, payload: dict, result: dict) -> str:
         return f"linear: created {result.get('identifier','?')} '{result.get('title','')[:60]}'"
     if tool == "linear.add_comment":
         return f"linear: commented on {result.get('issue','?')}"
+    if tool == "mcp.call":
+        return f"mcp {payload.get('server','?')}:{payload.get('mcp_tool','?')} → {(result.get('content') or '')[:80]}"
     return f"{tool} executed"
 
 
@@ -320,5 +322,13 @@ async def _dispatch(tool: str, payload: dict[str, Any], edit_note: Any) -> dict[
             "truncated": r.truncated,
             "note": r.note,
         }
+
+    if tool == "mcp.call":
+        from api.integrations import mcp_host
+        res = await mcp_host.call(
+            payload["server"], payload["mcp_tool"], payload.get("arguments") or {},
+        )
+        return {"server": payload["server"], "tool": payload["mcp_tool"],
+                "content": res["content"], "is_error": res["is_error"]}
 
     raise ValueError(f"unknown tool: {tool}")

@@ -63,6 +63,7 @@ dependencies = [
     "pyyaml>=6.0.3",
     "pywebpush>=2.0.0",
     "py-vapid>=1.9.0",
+    "mcp>=1.2.0",
 ]
 
 [project.optional-dependencies]

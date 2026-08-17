@@ -43,3 +43,4 @@ backups/
 *.age
 playbooks/*.md
 !playbooks/README.md
+mcp_servers.json

@@ -60,7 +60,16 @@ tools:
    params: { "tool": "vision", "source": "<path or https url>",
              "prompt": "<question; default: describe>" }
 
-7) "none" — the request doesn't clearly map to any of the above.
+7) "mcp" — a tool from a connected mcp server (listed below, format
+   server:tool). use when the request maps to one of those better than the
+   built-ins.
+   params: { "tool": "mcp", "server": "<server>", "mcp_tool": "<tool>",
+             "arguments": { ... }, "reason": "<one-line why>" }
+
+8) "none" — the request doesn't clearly map to any of the above.
+
+connected mcp tools (empty means none configured):
+{mcp_tools}
 
 reply with ONLY a JSON object. nothing else."""
 
@@ -82,6 +91,8 @@ class ActionsAgent(Agent):
             return await self._propose_browser_step(spec, user_text, session_id)
         if tool == "vision":
             return await self._propose_vision(spec, user_text, session_id)
+        if tool == "mcp":
+            return await self._propose_mcp(spec, user_text, session_id)
 
         return AgentResult(
             text=(
@@ -94,6 +105,35 @@ class ActionsAgent(Agent):
         )
 
     # ----- proposers (each opens approval, never executes inline) -----
+
+    async def _propose_mcp(self, spec: dict[str, Any], user_text: str, session_id: str) -> AgentResult:
+        server = (spec.get("server") or "").strip()
+        mcp_tool = (spec.get("mcp_tool") or "").strip()
+        arguments = spec.get("arguments") or {}
+        if not server or not mcp_tool:
+            return AgentResult(text="i need both the mcp server and the tool name.")
+
+        from api.integrations import mcp_host
+        if server not in mcp_host.load_config():
+            return AgentResult(text=f"no mcp server named '{server}' is configured.")
+
+        reason = (spec.get("reason") or user_text)[:140]
+        action_id = await approval.open_approval(
+            session_id=uuid.UUID(session_id),
+            domain="actions",
+            tool="mcp.call",
+            description=f"mcp {server}:{mcp_tool} {json.dumps(arguments)[:120]}",
+            payload={"server": server, "mcp_tool": mcp_tool,
+                     "arguments": arguments, "reason": reason},
+            requires_approval=True,
+        )
+        return AgentResult(
+            text=(
+                f"i'll call `{server}:{mcp_tool}` with:\n\n```json\n"
+                f"{json.dumps(arguments, indent=2)[:800]}\n```\n\napprove to run it."
+            ),
+            actions_opened=[str(action_id)],
+        )
 
     async def _propose_shell(self, spec: dict[str, Any], user_text: str, session_id: str) -> AgentResult:
         cmd = (spec.get("command") or "").strip()
@@ -293,8 +333,15 @@ class ActionsAgent(Agent):
 
     async def _plan(self, text: str) -> dict[str, Any]:
         try:
+            mcp_tools = ""
+            try:
+                from api.integrations import mcp_host
+                if mcp_host.configured():
+                    mcp_tools = mcp_host.compact_tool_list(await mcp_host.list_all_tools())
+            except Exception:
+                mcp_tools = "(mcp lookup failed)"
             raw = await self._ask(
-                system=INTENT_PROMPT,
+                system=INTENT_PROMPT.replace("{mcp_tools}", mcp_tools or "(none)"),
                 messages=[{"role": "user", "content": text}],
                 model=settings.model_default,
                 max_tokens=400,

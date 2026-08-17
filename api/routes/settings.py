@@ -19,6 +19,15 @@ async def get_liveness() -> list[dict[str, Any]]:
     return await liveness.all_beats()
 
 
+@router.get("/mcp")
+async def get_mcp() -> dict[str, Any]:
+    """configured mcp servers and their tools (or their connection error)."""
+    from api.integrations import mcp_host
+    if not mcp_host.configured():
+        return {"configured": False, "hint": "copy mcp_servers.example.json to mcp_servers.json"}
+    return {"configured": True, "servers": await mcp_host.list_all_tools()}
+
+
 @router.get("/spend")
 async def get_spend() -> dict[str, Any]:
     """today's claude spend, total and per run label, plus the daily cap."""
