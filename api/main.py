@@ -21,6 +21,7 @@ from api.scheduler import due_now as schedules_due, fire as schedule_fire
 from api.routes import (
     approvals,
     audit,
+    bots as bots_route,
     calendar,
     chat,
     code,
@@ -204,6 +205,7 @@ app.include_router(finance.router, prefix="/api/finance", tags=["finance"])
 app.include_router(settings_route.router, prefix="/api/settings", tags=["settings"])
 app.include_router(approvals.router, prefix="/api/approvals", tags=["approvals"])
 app.include_router(audit.router, prefix="/api/audit", tags=["audit"])
+app.include_router(bots_route.router, prefix="/api/bots", tags=["bots"])
 app.include_router(voice.router, prefix="/api/voice", tags=["voice"])
 app.include_router(eval_route.router, prefix="/api/eval", tags=["eval"])
 app.include_router(schedules.router, prefix="/api/schedules", tags=["schedules"])

@@ -44,3 +44,5 @@ backups/
 playbooks/*.md
 !playbooks/README.md
 mcp_servers.json
+bots/*.md
+!bots/README.md

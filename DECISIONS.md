@@ -113,3 +113,11 @@ what is fully runnable:
 - ambient triggers: watch_paths preference; filesystem changes fire channel-file triggers into playbooks.
 - fork and estate export: ro export tars the full db dump + playbooks + restore doc. secrets never leave the keychain. the agent is a folder, not an account.
 - skipped by choice: ambient always-on listening (all-party-consent legal risk flagged by the review panel), speculative rehearsal and watcher swarm (refuted as moats — google ships both at scale).
+
+## 2026-08-17 phase 4, the crew
+
+- named bots: bots/*.md charters, one persistent session per bot (channel_sessions channel=bot) so each remembers its work. every bot run goes through run_supervisor, so tools, lanes, budget, and the approval gate apply to bots exactly as to the user.
+- collaboration is explicit and bounded: a bot delegates with a '>> bot-name: task' line. depth cap 2, three delegations per reply, four bots per crew run. every handoff lands in bot_messages; the /bots page shows the log. no hidden channels by construction.
+- crew runs: a planner (local model first, cheap claude fallback) picks which bots a task needs, they run, the dispatcher synthesizes.
+- hire by description: /api/bots/draft writes a charter from a plain-language role. charters never instruct bypassing approvals; the drafter's system prompt forbids it.
+- schedule a bot: schedules text 'bot:<name>: <task>'. standing duties run on cron like any routine.

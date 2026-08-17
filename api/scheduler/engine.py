@@ -201,6 +201,13 @@ async def fire(s: Schedule) -> dict[str, Any]:
             last = (outcome.get("steps") or [{}])[-1]
             text = f"playbook {name}: {done}/{total} steps. {last.get('text') or last.get('error') or ''}".strip()
             failed = not outcome.get("ran") or done < total
+        elif s.text.strip().lower().startswith("bot:"):
+            from api import crew
+            rest = s.text.split(":", 1)[1].strip()
+            bot_name, _, bot_task = rest.partition(":")
+            outcome = await crew.run_bot(bot_name.strip(), bot_task.strip() or "run your standing charter duties.")
+            text = f"bot {bot_name.strip()}: {(outcome.get('text') or outcome.get('error') or outcome.get('reason') or '')[:4000]}"
+            failed = not outcome.get("ran") or bool(outcome.get("error"))
         else:
             result = await run_supervisor(session_id=sid, user_text=s.text)
             text = (result.get("text") or "").strip()

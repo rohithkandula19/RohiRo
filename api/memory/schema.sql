@@ -249,6 +249,16 @@ create table if not exists voice_signals (
 );
 create index if not exists voice_signals_channel_idx on voice_signals (channel, created_at);
 
+-- bot_messages: every handoff between crew bots, logged. no hidden channels.
+create table if not exists bot_messages (
+    id bigint generated always as identity primary key,
+    from_bot text not null,
+    to_bot text not null,
+    body text not null,
+    created_at timestamptz not null default now()
+);
+create index if not exists bot_messages_time_idx on bot_messages (created_at);
+
 -- triggers: when an inbound event matches, run a playbook.
 create table if not exists triggers (
     id uuid primary key default gen_random_uuid(),
