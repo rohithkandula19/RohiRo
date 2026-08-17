@@ -46,16 +46,24 @@ class RoMenubar(rumps.App):
     def __init__(self) -> None:
         super().__init__("ro", title="ro", quit_button=None)
         self._approvals_menu = rumps.MenuItem("Approvals (0)")
+        self._conversation_item = rumps.MenuItem("Conversation mode", callback=self.menu_conversation)
+        self._clipboard_item = rumps.MenuItem("Clipboard memory", callback=self.menu_clipboard)
         self.menu = [
             rumps.MenuItem("Talk to ro", callback=self.menu_talk),
+            self._conversation_item,
             rumps.MenuItem("Ask about my screen", callback=self.menu_screen),
             None,  # separator
             self._approvals_menu,
+            self._clipboard_item,
             rumps.MenuItem("Open web", callback=self.menu_open_web),
             rumps.MenuItem("Status: idle"),
             None,
             rumps.MenuItem("Quit", callback=self.menu_quit),
         ]
+        self._conversation = False
+        self._session_id = ""
+        self._clipboard_on = False
+        self._clip_last_count = -1
         self._status_item = self.menu["Status: idle"]
         self._recording = False
         self._audio_buf: list[np.ndarray] = []
@@ -183,6 +191,67 @@ class RoMenubar(rumps.App):
                 lines.append(str(candidates[0].string()))
         return "\n".join(lines)
 
+    # ----- conversation mode: talk, listen, talk again -----
+
+    def menu_conversation(self, item: rumps.MenuItem) -> None:
+        self._conversation = not self._conversation
+        item.state = self._conversation
+        if self._conversation:
+            self._session_id = ""  # fresh conversation
+            self._set_status("conversation on — talk when ready")
+            if not self._recording:
+                self._start_recording()
+        else:
+            self._set_status(f"idle ({HOTKEY})")
+
+    # ----- clipboard memory: opt-in, local, sensitive-looking skipped -----
+
+    def menu_clipboard(self, item: rumps.MenuItem) -> None:
+        self._clipboard_on = not self._clipboard_on
+        item.state = self._clipboard_on
+        if self._clipboard_on:
+            threading.Thread(target=self._clipboard_loop, daemon=True).start()
+
+    @staticmethod
+    def _looks_sensitive(text: str) -> bool:
+        """never store things shaped like secrets. errs toward skipping."""
+        t = text.strip()
+        if not t or len(t) > 10_000:
+            return True
+        for prefix in ("sk-", "ghp_", "gho_", "xox", "eyJ", "AKIA", "-----BEGIN"):
+            if t.startswith(prefix):
+                return True
+        if len(t) < 64 and " " not in t and "\n" not in t:
+            has_digit = any(c.isdigit() for c in t)
+            has_upper = any(c.isupper() for c in t)
+            has_lower = any(c.islower() for c in t)
+            if has_digit and has_upper and has_lower:
+                return True  # password-shaped
+        return False
+
+    def _clipboard_loop(self) -> None:
+        try:
+            from AppKit import NSPasteboard, NSPasteboardTypeString
+        except ImportError:
+            rumps.notification("ro", "", "clipboard memory needs pyobjc AppKit")
+            return
+        pb = NSPasteboard.generalPasteboard()
+        self._clip_last_count = pb.changeCount()
+        while self._clipboard_on:
+            time.sleep(2)
+            try:
+                count = pb.changeCount()
+                if count == self._clip_last_count:
+                    continue
+                self._clip_last_count = count
+                text = pb.stringForType_(NSPasteboardTypeString)
+                if not text or self._looks_sensitive(str(text)):
+                    continue
+                httpx.post(f"{API_BASE}/api/memory/clipboard",
+                           json={"body": str(text)[:8000]}, timeout=5)
+            except Exception:
+                pass
+
     # ----- menu actions -----
 
     def menu_talk(self, _: rumps.MenuItem) -> None:
@@ -304,17 +373,25 @@ class RoMenubar(rumps.App):
                 pass
 
         self.title = "ro"
-        self._set_status(f"idle ({HOTKEY})")
+        if self._conversation:
+            # conversation mode: your turn again. same session, ro remembers.
+            self._set_status("your turn…")
+            self._start_recording()
+        else:
+            self._set_status(f"idle ({HOTKEY})")
 
     def _roundtrip(self, wav_path: str) -> tuple[str, str, str | None]:
         """upload wav -> /api/voice/loop, then fetch tts mp3."""
         with httpx.Client(timeout=120.0) as c, open(wav_path, "rb") as fp:
             files = {"audio": ("audio.wav", fp, "audio/wav")}
-            r = c.post(f"{API_BASE}/api/voice/loop", files=files)
+            params = {"session": self._session_id} if self._session_id else {}
+            r = c.post(f"{API_BASE}/api/voice/loop", files=files, params=params)
             r.raise_for_status()
             data = r.json()
             transcript = data.get("transcript", "")
             response = data.get("response", "")
+            if data.get("session_id"):
+                self._session_id = data["session_id"]
 
         mp3_path: str | None = None
         if response:

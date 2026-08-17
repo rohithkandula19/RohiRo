@@ -249,6 +249,28 @@ create table if not exists voice_signals (
 );
 create index if not exists voice_signals_channel_idx on voice_signals (channel, created_at);
 
+-- health_samples: the body ledger. apple health export, imported locally.
+create table if not exists health_samples (
+    id bigint generated always as identity primary key,
+    kind text not null,
+    value double precision not null,
+    unit text not null default '',
+    start_at timestamptz not null,
+    end_at timestamptz,
+    source text not null default '',
+    unique (kind, start_at, value)
+);
+create index if not exists health_kind_time_idx on health_samples (kind, start_at);
+
+-- clipboard_history: opt-in, local only, sensitive-looking entries skipped.
+create table if not exists clipboard_history (
+    id bigint generated always as identity primary key,
+    body text not null,
+    body_tsv tsvector generated always as (to_tsvector('english', body)) stored,
+    created_at timestamptz not null default now()
+);
+create index if not exists clipboard_tsv_idx on clipboard_history using gin (body_tsv);
+
 -- bot_messages: every handoff between crew bots, logged. no hidden channels.
 create table if not exists bot_messages (
     id bigint generated always as identity primary key,

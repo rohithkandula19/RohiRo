@@ -128,3 +128,13 @@ what is fully runnable:
 - ro as an mcp server: api/mcp_server.py (mcp 2.0 MCPServer, stdio). exposes memory search, archive search, open loops (read + add), pending approvals (read-only), playbook runs, ro_chat through the full supervisor, and ro_message_user (self-channel only, ledgered). the approval gate sits below the mcp surface, so no client can bypass it. claude code config snippet in the module docstring.
 - night shift: 03:30 launchd job. embedding backfill for rows that never got vectors (lane-aware, vault skipped), analyze on hot tables, a 5-task eval spot-check when keyed. report lands in preferences and the digest's overnight line.
 - screen sense: menubar "ask about my screen". screencapture -> apple vision ocr fully on-device (pyobjc-framework-vision) -> only the recognized text goes to the supervisor with a read-only framing; answer lands in a window and on the clipboard. pixels never leave the machine.
+
+## 2026-08-17 phase 6, tiers two and three
+
+- life report: monthly rewind (api/life_report.py, ro.lifereport.plist on the 1st) from the archive, commitments, action_log, and spend. honest fallback when the data is thin.
+- voice conversation mode: menubar toggle. /api/voice/loop and /talk accept a session id, ro remembers across turns, playback ends and the mic opens again. one conversation, not amnesiac one-shots.
+- distill prep: api/eval/distill.py exports edited-draft training pairs as jsonl with dedupe and a minimum-pairs refusal. the mlx-lm lora recipe and the eval-gated promotion path live in the docstring, with the honest caveat that learned-style rules may beat a lora at low volumes. data side only by choice.
+- guest mode: imessage_guests keychain key allowlists up to five handles. guests get a framed, actionless, no-private-data ro in separate sessions with per-guest watermarks. first sight is baseline, not a backlog to answer.
+- body ledger ingestion: api/integrations/health_import.py streams apple health export.xml (hundreds of mb) via iterparse into health_samples with an allowlist. weekly_summary for the digest later. waiting on an export file, by design.
+- focus-aware delivery: api/observability/focus.py reads the macos focus assertions file best-effort plus a quiet_hours preference. digests defer during focus or quiet hours; approval pings stay urgent and always land.
+- clipboard memory: opt-in menubar toggle, 2s pasteboard polling, secret-shaped text never stored (prefix and password-shape heuristics err toward skipping), rows local with fts search.

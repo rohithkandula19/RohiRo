@@ -19,6 +19,7 @@ replays or double-answers.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 
 from api.config import secrets
 from api.integrations import imessage as imsg
@@ -34,6 +35,22 @@ CHANNEL = "imessage"
 
 def _channel_key() -> str:
     return (secrets.get("imessage_channel") or "").strip()
+
+
+def _guest_keys() -> list[str]:
+    """guest mode: extra people allowed a limited ro. comma-separated
+    handles in the imessage_guests keychain key. empty means nobody."""
+    raw = (secrets.get("imessage_guests") or "").strip()
+    return [g.strip() for g in raw.split(",") if g.strip()][:5]
+
+
+GUEST_FRAME = (
+    "(a guest, '{who}', is texting you. answer helpfully and briefly. hard "
+    "rules for guests: no actions of any kind, no shell, no browser, no "
+    "sends; never reveal the owner's private information, messages, "
+    "schedule details, or memory contents; if asked, say that's private. "
+    "general questions and small talk are fine.)\n\n"
+)
 
 
 async def _get_watermark() -> int:
@@ -124,7 +141,59 @@ async def run_once() -> dict[str, int]:
     out = {"new": new, "replies": replies, "watermark": highest}
     if skipped_own:
         out["skipped_own"] = skipped_own
+
+    guests = await _run_guests()
+    if guests:
+        out["guest_replies"] = guests
     return out
+
+
+async def _run_guests() -> int:
+    """limited ro for allowlisted guests. separate watermark per guest,
+    separate sessions, no actions, no private data (instruction-framed and
+    the guest session shares nothing with yours)."""
+    replies = 0
+    for guest in _guest_keys():
+        mark_key = f"imessage_guest_{hashlib.sha256(guest.encode()).hexdigest()[:12]}"
+        row = await db.fetchrow(
+            "select external_id from seen_keys where source = $1 order by first_seen_at desc limit 1",
+            mark_key,
+        )
+        mark = 0
+        if row:
+            try:
+                mark = int(row["external_id"].split(":", 1)[1])
+            except Exception:
+                mark = 0
+        msgs = await imsg.channel_messages(guest, since_rowid=mark, limit=10)
+        if not msgs:
+            continue
+        highest = mark
+        for m in msgs:
+            highest = max(highest, m.rowid)
+            if mark == 0:
+                continue  # first sight is baseline, not a backlog to answer
+            if await gateway.was_recently_sent(CHANNEL, guest, m.text):
+                continue
+
+            target = m.from_handle or guest
+
+            async def _reply(text: str, _t: str = target) -> None:
+                ok = await imsg.send_message(_t, text)
+                if not ok:
+                    raise RuntimeError("guest reply send failed")
+
+            framed = GUEST_FRAME.format(who=m.chat_display[:60]) + m.text
+            result = await gateway.handle_inbound(
+                channel="imessage-guest", chat_key=guest, text=framed, reply=_reply,
+            )
+            if result.get("text"):
+                replies += 1
+        await db.execute(
+            "insert into seen_keys (source, external_id) values ($1, $2) on conflict do nothing",
+            mark_key, f"rowid:{highest}",
+        )
+    return replies
 
 
 async def loop() -> None:

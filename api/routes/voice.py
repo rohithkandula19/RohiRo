@@ -67,15 +67,20 @@ async def speak(payload: SpeakIn) -> Response:
 
 
 @router.post("/loop", response_model=VoiceLoopOut)
-async def voice_loop(audio: UploadFile) -> VoiceLoopOut:
-    """one shot: mic -> transcript -> supervisor -> response text. caller plays /speak."""
+async def voice_loop(audio: UploadFile, session: str | None = None) -> VoiceLoopOut:
+    """one shot: mic -> transcript -> supervisor -> response text. caller
+    plays /speak. pass ?session=<id from the last reply> to keep talking in
+    one conversation instead of starting amnesiac every time."""
     if not voice_int.configured():
         raise HTTPException(503, voice_int.config_hint())
     data = await audio.read()
     transcript = await voice_int.transcribe(data, filename=audio.filename or "audio.webm")
     if not transcript.strip():
         return VoiceLoopOut(transcript="", response="(no speech detected)", session_id="")
-    sid = uuid.uuid4()
+    try:
+        sid = uuid.UUID(session) if session else uuid.uuid4()
+    except ValueError:
+        sid = uuid.uuid4()
     result = await run_supervisor(session_id=sid, user_text=transcript)
     return VoiceLoopOut(
         transcript=transcript,
@@ -91,12 +96,14 @@ async def voice_loop(audio: UploadFile) -> VoiceLoopOut:
 async def talk(
     audio: UploadFile,
     authorization: str | None = Header(default=None),
+    x_ro_session: str | None = Header(default=None),
 ) -> Response:
     """audio in, mp3 out. one round-trip for the iOS Shortcut.
 
     headers in the response:
       X-Ro-Transcript: <what you said>
       X-Ro-Reply:      <what ro said back, urlencoded>
+      X-Ro-Session:    <session id — send it back to keep the conversation>
     """
     _check_remote_auth(authorization)
     if not voice_int.configured():
@@ -110,7 +117,11 @@ async def talk(
             "X-Ro-Transcript": "",
             "X-Ro-Reply": urllib.parse.quote("(no speech detected)"),
         })
-    sid = uuid.uuid4()
+    # conversation continuity: reuse the caller's session when they echo it back
+    try:
+        sid = uuid.UUID(x_ro_session) if x_ro_session else uuid.uuid4()
+    except ValueError:
+        sid = uuid.uuid4()
     result = await run_supervisor(session_id=sid, user_text=transcript)
     reply = result.get("text", "")
     audio_bytes, mime = await voice_int.synthesize(reply)

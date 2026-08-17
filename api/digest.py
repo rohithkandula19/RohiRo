@@ -288,11 +288,22 @@ async def _weave(sections: dict[str, Any]) -> str:
 
 
 async def deliver(markdown: str) -> dict[str, bool]:
-    """send the digest through every configured channel. best effort each."""
+    """send the digest through every configured channel. best effort each.
+    focus-aware: a digest is never urgent, so an active focus mode or your
+    quiet hours defer channel delivery (the web ui still has it)."""
     delivered: dict[str, bool] = {}
     text = markdown.strip()
     if not text:
         return delivered
+
+    try:
+        from api.observability import focus
+        ping_ok, why = await focus.should_ping(urgent=False)
+        if not ping_ok:
+            log.info("digest delivery deferred", why=why)
+            return {"deferred": True}
+    except Exception:
+        pass  # focus module unavailable = deliver as before
 
     # imessage ro channel
     try:

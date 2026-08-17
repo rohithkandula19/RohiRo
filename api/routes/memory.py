@@ -6,7 +6,7 @@ import json
 from typing import Any, Optional
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from api.memory import autofetch
 from api.memory import entities as entities_mod
@@ -132,6 +132,33 @@ async def get_dossier(contact: str) -> dict[str, Any]:
     if md is None:
         raise HTTPException(404, "no dossier for that contact yet")
     return {"contact": contact, "dossier": md}
+
+
+class ClipboardIn(BaseModel):
+    body: str = Field(min_length=1, max_length=8000)
+
+
+@router.post("/clipboard")
+async def add_clipboard(payload: ClipboardIn) -> dict[str, Any]:
+    """opt-in clipboard memory. the menubar filters sensitive-looking text
+    before this ever gets called; rows never leave the machine."""
+    from api.memory.db import db
+    await db.execute("insert into clipboard_history (body) values ($1)", payload.body)
+    return {"ok": True}
+
+
+@router.get("/clipboard/search")
+async def search_clipboard(q: str, limit: int = 20) -> list[dict[str, Any]]:
+    from api.memory.db import db
+    rows = await db.fetch(
+        """select body, created_at,
+                  ts_rank(body_tsv, plainto_tsquery('english', $1)) as score
+           from clipboard_history
+           where body_tsv @@ plainto_tsquery('english', $1)
+           order by score desc, created_at desc limit $2""",
+        q, min(limit, 50),
+    )
+    return [{"body": r["body"][:400], "at": r["created_at"].isoformat()} for r in rows]
 
 
 @router.get("/decisions")
