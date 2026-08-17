@@ -51,9 +51,10 @@ def status() -> None:
     subprocess.run([str(ROOT / "scripts" / "healthcheck.sh")], check=False)
 
 
+@app.command(name="up")
 @app.command()
 def start() -> None:
-    """install + start the launchd services (imessage, telegram, voice, jobs)."""
+    """install + start the launchd services (api hosts the listeners in-process)."""
 
     plist_dir = ROOT / "infra" / "launchd"
     target = Path.home() / "Library" / "LaunchAgents"
@@ -66,6 +67,7 @@ def start() -> None:
         console.print(f"[green]loaded[/green] {plist.name}")
 
 
+@app.command(name="down")
 @app.command()
 def stop() -> None:
     """stop the launchd services."""
@@ -74,6 +76,21 @@ def stop() -> None:
     for plist in target.glob("ro.*.plist"):
         subprocess.run(["launchctl", "unload", str(plist)], check=False)
         console.print(f"[yellow]unloaded[/yellow] {plist.name}")
+
+
+@app.command()
+def playbooks() -> None:
+    """list saved playbooks."""
+
+    import httpx as _httpx
+    try:
+        r = _httpx.get("http://127.0.0.1:8000/api/playbooks", timeout=5)
+        for p in r.json():
+            console.print(f"[bold]{p['name']}[/bold]  {p['title']}  ({p['steps']} steps)")
+        if not r.json():
+            console.print("[dim]no playbooks yet. see playbooks/README.md[/dim]")
+    except Exception:
+        console.print("[red]api not reachable — is `ro up` running?[/red]")
 
 
 def main() -> None:

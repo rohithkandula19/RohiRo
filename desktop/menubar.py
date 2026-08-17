@@ -45,9 +45,11 @@ MAX_SECONDS = 60     # cap; press hotkey again to stop
 class RoMenubar(rumps.App):
     def __init__(self) -> None:
         super().__init__("ro", title="ro", quit_button=None)
+        self._approvals_menu = rumps.MenuItem("Approvals (0)")
         self.menu = [
             rumps.MenuItem("Talk to ro", callback=self.menu_talk),
             None,  # separator
+            self._approvals_menu,
             rumps.MenuItem("Open web", callback=self.menu_open_web),
             rumps.MenuItem("Status: idle"),
             None,
@@ -59,6 +61,49 @@ class RoMenubar(rumps.App):
         self._stop_event = threading.Event()
         self._listener: keyboard.GlobalHotKeys | None = None
         self._start_hotkey()
+        self._approvals_timer = rumps.Timer(self._refresh_approvals, 20)
+        self._approvals_timer.start()
+
+    # ----- approvals: see + decide from the menubar -----
+
+    def _refresh_approvals(self, _timer: rumps.Timer) -> None:
+        threading.Thread(target=self._load_approvals, daemon=True).start()
+
+    def _load_approvals(self) -> None:
+        try:
+            r = httpx.get(f"{API_BASE}/api/approvals", timeout=5)
+            pending = r.json() if r.status_code == 200 else []
+        except Exception:
+            pending = []
+        # rebuild the submenu on the main thread via rumps timer-safe calls
+        self._approvals_menu.title = f"Approvals ({len(pending)})"
+        # clear old entries
+        for key in list(self._approvals_menu.keys()):
+            del self._approvals_menu[key]
+        if not pending:
+            self._approvals_menu.add(rumps.MenuItem("nothing pending"))
+            return
+        for a in pending[:8]:
+            desc = (a.get("description") or a.get("tool") or "?")[:70]
+            item = rumps.MenuItem(desc)
+            aid = a.get("id")
+            item.add(rumps.MenuItem("Approve", callback=self._decide_cb(aid, "approved")))
+            item.add(rumps.MenuItem("Reject", callback=self._decide_cb(aid, "rejected")))
+            self._approvals_menu.add(item)
+
+    def _decide_cb(self, action_id: str, decision: str):
+        def _cb(_: rumps.MenuItem) -> None:
+            def _post() -> None:
+                try:
+                    httpx.post(
+                        f"{API_BASE}/api/approvals/{action_id}/decide",
+                        json={"decision": decision}, timeout=30,
+                    )
+                except Exception:
+                    pass
+                self._load_approvals()
+            threading.Thread(target=_post, daemon=True).start()
+        return _cb
 
     # ----- menu actions -----
 

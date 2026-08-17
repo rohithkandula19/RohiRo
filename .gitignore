@@ -41,3 +41,5 @@ coverage/
 
 backups/
 *.age
+playbooks/*.md
+!playbooks/README.md

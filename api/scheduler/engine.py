@@ -192,8 +192,18 @@ async def fire(s: Schedule) -> dict[str, Any]:
     failed = False
     budget.set_run(f"routine:{s.title or s.id}")
     try:
-        result = await run_supervisor(session_id=sid, user_text=s.text)
-        text = (result.get("text") or "").strip()
+        if s.text.strip().lower().startswith("playbook:"):
+            from api import playbooks as pb
+            name = s.text.split(":", 1)[1].strip()
+            outcome = await pb.run_playbook(name)
+            done = outcome.get("completed", 0)
+            total = outcome.get("total", 0)
+            last = (outcome.get("steps") or [{}])[-1]
+            text = f"playbook {name}: {done}/{total} steps. {last.get('text') or last.get('error') or ''}".strip()
+            failed = not outcome.get("ran") or done < total
+        else:
+            result = await run_supervisor(session_id=sid, user_text=s.text)
+            text = (result.get("text") or "").strip()
     except Exception as e:
         log.exception("scheduler fire failed", schedule=s.id)
         text = f"(failed: {e})"
