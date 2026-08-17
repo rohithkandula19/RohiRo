@@ -50,7 +50,7 @@ class VoiceLoopOut(BaseModel):
 @router.post("/transcribe", response_model=TranscribeOut)
 async def transcribe(audio: UploadFile) -> TranscribeOut:
     if not voice_int.configured():
-        raise HTTPException(503, "voice not configured: `keyring set ro openai_api_key`")
+        raise HTTPException(503, voice_int.config_hint())
     data = await audio.read()
     if not data:
         return TranscribeOut(text="")
@@ -61,16 +61,16 @@ async def transcribe(audio: UploadFile) -> TranscribeOut:
 @router.post("/speak")
 async def speak(payload: SpeakIn) -> Response:
     if not voice_int.configured():
-        raise HTTPException(503, "voice not configured: `keyring set ro openai_api_key`")
-    mp3 = await voice_int.synthesize(payload.text, voice=payload.voice or "nova")
-    return Response(content=mp3, media_type="audio/mpeg")
+        raise HTTPException(503, voice_int.config_hint())
+    audio_bytes, mime = await voice_int.synthesize(payload.text, voice=payload.voice or "nova")
+    return Response(content=audio_bytes, media_type=mime)
 
 
 @router.post("/loop", response_model=VoiceLoopOut)
 async def voice_loop(audio: UploadFile) -> VoiceLoopOut:
     """one shot: mic -> transcript -> supervisor -> response text. caller plays /speak."""
     if not voice_int.configured():
-        raise HTTPException(503, "voice not configured: `keyring set ro openai_api_key`")
+        raise HTTPException(503, voice_int.config_hint())
     data = await audio.read()
     transcript = await voice_int.transcribe(data, filename=audio.filename or "audio.webm")
     if not transcript.strip():
@@ -100,7 +100,7 @@ async def talk(
     """
     _check_remote_auth(authorization)
     if not voice_int.configured():
-        raise HTTPException(503, "voice not configured: `keyring set ro openai_api_key`")
+        raise HTTPException(503, voice_int.config_hint())
     data = await audio.read()
     if not data:
         raise HTTPException(400, "no audio")
@@ -113,8 +113,8 @@ async def talk(
     sid = uuid.uuid4()
     result = await run_supervisor(session_id=sid, user_text=transcript)
     reply = result.get("text", "")
-    mp3 = await voice_int.synthesize(reply)
-    return Response(content=mp3, media_type="audio/mpeg", headers={
+    audio_bytes, mime = await voice_int.synthesize(reply)
+    return Response(content=audio_bytes, media_type=mime, headers={
         "X-Ro-Transcript": urllib.parse.quote(transcript)[:1500],
         "X-Ro-Reply": urllib.parse.quote(reply)[:3000],
         "X-Ro-Session": str(sid),
@@ -129,15 +129,15 @@ async def ask_text(
     """text in, mp3 out. for Siri 'Hey Siri, ask ro X' that already gives us text."""
     _check_remote_auth(authorization)
     if not voice_int.configured():
-        raise HTTPException(503, "voice not configured: `keyring set ro openai_api_key`")
+        raise HTTPException(503, voice_int.config_hint())
     text = (payload or {}).get("text", "").strip()
     if not text:
         raise HTTPException(400, "missing 'text'")
     sid = uuid.uuid4()
     result = await run_supervisor(session_id=sid, user_text=text)
     reply = result.get("text", "")
-    mp3 = await voice_int.synthesize(reply)
-    return Response(content=mp3, media_type="audio/mpeg", headers={
+    audio_bytes, mime = await voice_int.synthesize(reply)
+    return Response(content=audio_bytes, media_type=mime, headers={
         "X-Ro-Reply": urllib.parse.quote(reply)[:3000],
         "X-Ro-Session": str(sid),
     })
