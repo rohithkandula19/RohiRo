@@ -55,6 +55,23 @@ class ClaudeClient:
         await lanes.check_cloud("claude")
 
         chosen = model or settings.model_default
+
+        # no anthropic key but an openrouter key: same claude models through
+        # openrouter's gateway. tools are not supported on this path yet, so
+        # tool-bearing calls still require the direct key.
+        if not secrets.get("anthropic_api_key") and secrets.get("openrouter_api_key"):
+            if tools:
+                raise RuntimeError(
+                    "tool calls need a direct anthropic_api_key; openrouter path is text-only for now"
+                )
+            resp = await _openrouter_message(
+                model=chosen, system=system, messages=messages,
+                max_tokens=max_tokens, temperature=temperature,
+            )
+            self._record_usage(resp)
+            self._record_spend(resp, f"openrouter:{_openrouter_model(chosen)}")
+            return resp
+
         attempt = 0
         last_err: Optional[Exception] = None
         while attempt <= retries:
@@ -129,9 +146,83 @@ class ClaudeClient:
 
 
 def configured() -> bool:
-    """is the anthropic key present? background loops gate on this so a
-    keyless install stays quiet instead of tracebacking every interval."""
-    return bool(secrets.get("anthropic_api_key"))
+    """is a brain available? anthropic direct, or anthropic-via-openrouter.
+    background loops gate on this so a keyless install stays quiet instead
+    of tracebacking every interval."""
+    return bool(secrets.get("anthropic_api_key")) or bool(secrets.get("openrouter_api_key"))
+
+
+# ----- openrouter path (anthropic models through the openai-compatible api) -----
+#
+# store the key yourself (never paste keys into chats):
+#   uv run python -c "import keyring; keyring.set_password('ro','openrouter_api_key', input('key: '))"
+# optional: pin one model for everything:
+#   keychain key openrouter_model, e.g. anthropic/claude-sonnet-4.5
+
+
+class _ShimBlock:
+    type = "text"
+
+    def __init__(self, text: str) -> None:
+        self.text = text
+
+
+class _ShimUsage:
+    def __init__(self, prompt: int, completion: int) -> None:
+        self.input_tokens = prompt
+        self.output_tokens = completion
+        self.cache_read_input_tokens = 0
+        self.cache_creation_input_tokens = 0
+
+
+class _ShimMessage:
+    """quacks like anthropic.types.Message for every caller in this repo
+    (content blocks with .type/.text, and .usage token counts)."""
+
+    def __init__(self, text: str, prompt: int, completion: int) -> None:
+        self.content = [_ShimBlock(text)]
+        self.usage = _ShimUsage(prompt, completion)
+
+
+def _openrouter_model(requested: str) -> str:
+    pinned = secrets.get("openrouter_model")
+    if pinned:
+        return pinned
+    # claude-sonnet-4-6 -> anthropic/claude-sonnet-4-6; already-prefixed passes through
+    return requested if "/" in requested else f"anthropic/{requested}"
+
+
+async def _openrouter_message(
+    *,
+    model: str,
+    system: Optional[str],
+    messages: list[dict[str, Any]],
+    max_tokens: int,
+    temperature: float,
+) -> Message:
+    from openai import AsyncOpenAI
+
+    client = AsyncOpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=secrets.get("openrouter_api_key"),
+    )
+    oai_messages: list[dict[str, Any]] = []
+    if system:
+        oai_messages.append({"role": "system", "content": system})
+    oai_messages += messages
+    resp = await client.chat.completions.create(
+        model=_openrouter_model(model),
+        messages=oai_messages,
+        max_tokens=max_tokens,
+        temperature=temperature,
+    )
+    text = (resp.choices[0].message.content or "") if resp.choices else ""
+    usage = getattr(resp, "usage", None)
+    return _ShimMessage(  # type: ignore[return-value]
+        text,
+        getattr(usage, "prompt_tokens", 0) or 0,
+        getattr(usage, "completion_tokens", 0) or 0,
+    )
 
 
 claude_client = ClaudeClient()

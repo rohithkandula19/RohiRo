@@ -124,7 +124,8 @@ def doctor() -> None:
 
         # keys
         for key, why in [
-            ("anthropic_api_key", "the brain. console.anthropic.com/settings/keys"),
+            ("anthropic_api_key", "the brain. console.anthropic.com/settings/keys (or set openrouter_api_key)"),
+            ("openrouter_api_key", "alt brain via openrouter.ai/keys — text paths only"),
             ("imessage_channel", "your own number. keyring set ro imessage_channel"),
             ("user_email", "keyring set ro user_email"),
             ("telegram_bot_token", "optional. @BotFather"),

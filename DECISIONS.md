@@ -161,3 +161,7 @@ what is fully runnable:
 - ro speaks anthropic's open SKILL.md format. mcp brought the world's tools; the skills bridge brings the world's procedures. catalog scans ~/.claude/skills, ./skills, and skill_paths preference two levels deep, frontmatter-only for speed, cached 5 minutes. verified live against 4,570 skills on this machine.
 - safety unchanged by construction: a skill body is third-party instructions run through the supervisor; anything it wants done in the world goes through the normal proposers and the approval gate. bundled scripts never execute directly — only through an approved shell card.
 - with this, ro consumes both open agent ecosystems (mcp servers, agent skills) approval-gated. grok bot consumes neither. this was the last ecosystem door; there are no more ecosystems to bridge.
+
+## 2026-08-17 phase 10, openrouter path
+
+- the brain accepts a second key: openrouter_api_key runs the same claude models through openrouter's openai-compatible gateway when no direct anthropic key exists. a shim quacks like the anthropic message shape for every caller. tool-bearing calls still require the direct key (honest limitation, raised loudly). spend attribution tags openrouter models. the key is stored by the user themselves via keyring — keys are never pasted into chats, and the assistant never handles them; that rule is part of ro's own dna and it applied to building ro too.
