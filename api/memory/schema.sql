@@ -170,6 +170,13 @@ create index if not exists schedules_due_idx on schedules (enabled, next_run_at)
 -- consecutive failure counter. scheduler disables a schedule at 3.
 alter table schedules add column if not exists consecutive_failures integer not null default 0;
 
+-- push_subscriptions: web push targets for the localhost ui.
+create table if not exists push_subscriptions (
+    endpoint text primary key,
+    subscription jsonb not null,
+    created_at timestamptz not null default now()
+);
+
 -- heartbeats: one row per background worker / integration, latest state.
 create table if not exists heartbeats (
     name text primary key,

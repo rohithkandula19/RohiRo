@@ -201,13 +201,64 @@ async def _weave(sections: dict[str, Any]) -> str:
         return _structured_fallback(sections)
 
 
+# ----- delivery (proactive: ro messages you first) -----
+
+
+async def deliver(markdown: str) -> dict[str, bool]:
+    """send the digest through every configured channel. best effort each."""
+    delivered: dict[str, bool] = {}
+    text = markdown.strip()
+    if not text:
+        return delivered
+
+    # imessage ro channel
+    try:
+        from api.config import secrets
+        from api.integrations import imessage as imsg
+        from api.listeners import gateway
+        channel = (secrets.get("imessage_channel") or "").strip()
+        if channel and imsg.configured():
+            await gateway.record_sent("imessage", channel, text)
+            delivered["imessage"] = await imsg.send_message(channel, text)
+    except Exception:
+        log.warning("digest imessage delivery failed")
+        delivered["imessage"] = False
+
+    # telegram owner dm
+    try:
+        from api.integrations import telegram as tg
+        owner = tg.owner_id()
+        if tg.configured() and owner is not None:
+            await tg.send_message(int(owner), text[:4000])
+            delivered["telegram"] = True
+    except Exception:
+        log.warning("digest telegram delivery failed")
+        delivered["telegram"] = False
+
+    # web push (headline only)
+    try:
+        from api.integrations import webpush
+        first_line = next((ln.strip("# ").strip() for ln in text.splitlines() if ln.strip()), "digest ready")
+        res = await webpush.push_all(title="ro · morning digest", body=first_line[:200], url="/overview")
+        delivered["push"] = bool(res.get("sent"))
+    except Exception:
+        delivered["push"] = False
+
+    return delivered
+
+
 # ----- cli entry (launchd) -----
 
 
 async def run() -> None:
     setup_logging()
+    from api.observability import budget
+    budget.set_run("routine:digest")
     result = await build_digest()
     print(result["markdown"])
+    outcomes = await deliver(result["markdown"])
+    if outcomes:
+        log.info("digest delivered", **{k: str(v) for k, v in outcomes.items()})
 
 
 if __name__ == "__main__":

@@ -61,6 +61,8 @@ dependencies = [
     "pillow>=12.2.0",
     "reportlab>=4.5.1",
     "pyyaml>=6.0.3",
+    "pywebpush>=2.0.0",
+    "py-vapid>=1.9.0",
 ]
 
 [project.optional-dependencies]

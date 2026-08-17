@@ -29,6 +29,20 @@ async def open_approval(
         json.dumps(payload),
         requires_approval,
     )
+
+    # ping the phone/browser. best-effort, never blocks the open.
+    if requires_approval:
+        try:
+            import asyncio
+            from api.integrations import webpush
+            asyncio.get_running_loop().create_task(webpush.push_all(
+                title="ro needs a yes",
+                body=description[:200],
+                url="/overview",
+            ))
+        except Exception:
+            pass
+
     return row["id"]
 
 
