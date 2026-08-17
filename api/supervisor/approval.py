@@ -42,8 +42,34 @@ async def open_approval(
             ))
         except Exception:
             pass
+        try:
+            import asyncio
+            asyncio.get_running_loop().create_task(_send_telegram_card(row["id"], description))
+        except Exception:
+            pass
 
     return row["id"]
+
+
+async def _send_telegram_card(action_id: uuid.UUID, description: str) -> None:
+    """approve from your phone: inline buttons under the approval text.
+    only the owner's presses count (the listener checks from_id)."""
+    try:
+        from api.integrations import telegram as tg
+        owner = tg.owner_id()
+        if not tg.configured() or owner is None:
+            return
+        short = str(action_id)
+        await tg.send_message(
+            int(owner),
+            f"ro needs a yes:\n{description[:900]}",
+            reply_markup={"inline_keyboard": [[
+                {"text": "approve", "callback_data": f"app:{short}"},
+                {"text": "reject", "callback_data": f"rej:{short}"},
+            ]]},
+        )
+    except Exception:
+        log.warning("telegram approval card failed", action_id=str(action_id))
 
 
 async def list_pending() -> list[dict[str, Any]]:

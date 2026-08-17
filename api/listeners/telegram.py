@@ -102,6 +102,10 @@ async def run_once() -> dict[str, int]:
         if owner is not None and u.from_id != owner:
             ignored_outsider += 1
             continue
+        if u.callback_data:
+            await _handle_callback(u)
+            new += 1
+            continue
         new += 1
         try:
             await tree_write(
@@ -129,6 +133,45 @@ async def run_once() -> dict[str, int]:
     if ignored_outsider:
         out["ignored_outsider"] = ignored_outsider
     return out
+
+
+async def _handle_callback(u: tg.TGUpdate) -> None:
+    """approve/reject button press. owner-gated by the caller.
+
+    the decide is the same cas as every other surface: a press that loses the
+    race gets told the action was already decided, never a double send.
+    """
+    import uuid as _uuid
+    from api.supervisor import approval, execute as execute_mod
+
+    data = u.callback_data
+    if ":" not in data:
+        await tg.answer_callback(u.callback_id, "unknown button")
+        return
+    verb, raw_id = data.split(":", 1)
+    try:
+        aid = _uuid.UUID(raw_id)
+    except ValueError:
+        await tg.answer_callback(u.callback_id, "bad id")
+        return
+
+    decision = "approved" if verb == "app" else "rejected"
+    outcome = await approval.decide(aid, decision=decision)
+    if outcome != "applied":
+        note = "already decided" if outcome.startswith("already_") else "not found"
+        await tg.answer_callback(u.callback_id, note)
+        await tg.edit_message(u.chat_id, u.message_id, f"({note})")
+        return
+
+    if decision == "approved":
+        result = await execute_mod.execute(aid)
+        ok = result.get("ok")
+        await tg.answer_callback(u.callback_id, "approved" if ok else "approve failed")
+        summary = "approved and executed" if ok else f"approved but failed: {result.get('error', '?')[:120]}"
+    else:
+        await tg.answer_callback(u.callback_id, "rejected")
+        summary = "rejected"
+    await tg.edit_message(u.chat_id, u.message_id, f"({summary})")
 
 
 async def loop() -> None:
