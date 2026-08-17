@@ -87,3 +87,14 @@ what is fully runnable:
 - grok bot comparison, honest: ro now has always-on (launchd, best effort while the mac is awake), messaging interface, workflow learning (text-taught), coordination (chains), proactive mode, persistent browser profiles (host-scoped, opt-in). ro keeps secrets in the keychain and every outward write behind approval, which grok bot's shared-computer design does not.
 - eslint configured for web (next/core-web-vitals). one jsx error fixed, img warnings accepted for now.
 - deferred, logged in TODOS.md: whatsapp entry point (meta api account), screen-recording capture, plaid + apple health.
+
+## 2026-08-17 phase 2, next-level session
+
+- telegram inline approvals: approval opens send the owner a card with approve/reject buttons. presses come back as callback_query updates, owner-gated, through the same cas decide + atomic execute. a losing press sees "already decided".
+- event triggers: triggers table + matcher in the gateway. substring or /regex/ per channel, cas cooldown claim (10 min) so bursts cannot double-fire, playbooks run as background tasks so replies are never delayed.
+- teach by description: /api/playbooks/draft. narrate the task, the cheap model writes the stepped playbook, nothing saves until reviewed in the editor. the honest v1 of grok bot's teach-by-demonstration.
+- mcp host: ro loads any mcp server from mcp_servers.json (keychain: env refs, real file gitignored). per-call stdio sessions, tool list cached 5 min and injected into the actions agent prompt, every call approval-gated as mcp.call because ro cannot tell a read from a write on an arbitrary server. this replaces "write an integration per service" as the growth path.
+- local model tier: ollama handles classification when the ollama_model preference is set and the server answers. probe cached per minute, malformed output falls through to claude. free and private for the highest-volume call.
+- weekly self-review: distills 7 days of decisions into learned-style rules in the profile, refreshes voice rules, runs the memory evals when keyed, reports through digest channels. ro measurably improves weekly or the evals say otherwise.
+- two more tables had no ddl: learned_voice and voice_signals (voice learner wrote to them since the last commit landed them unbacked). committed with a tool column the learner expects.
+- always-on substrate documented: mac mini (full fidelity incl imessage) or linux vps (systemd units shipped, no imessage). laptop stays the default.

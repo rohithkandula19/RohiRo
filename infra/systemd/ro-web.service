@@ -1,0 +1,14 @@
+[Unit]
+Description=ro web ui
+After=ro-api.service
+
+[Service]
+Type=simple
+User=ro
+WorkingDirectory=/home/ro/RohiRo/web
+ExecStart=/usr/bin/env pnpm start -p 3000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -32,6 +32,20 @@ without your yes.
   ro pings you when one of its own arms breaks.
 - **voice.** local whisper in a process pool, ios shortcut round-trip
   (audio in, audio out), openai fallback when local pieces are missing.
+- **mcp host.** drop any mcp server into `mcp_servers.json` and ro gains
+  its tools, every call behind the approval gate. secrets stay keychain
+  refs, never in the file.
+- **triggers.** when a matching message arrives on any channel, a playbook
+  fires in the background. substring or regex, per-channel, with cooldowns.
+- **teach by words.** describe a task in plain language and ro drafts the
+  stepped playbook for your review.
+- **phone approvals.** telegram cards with approve/reject buttons; presses
+  go through the same race-safe gate as every other surface.
+- **self-review.** weekly, ro distills your edits and rejections into
+  style rules, refreshes its voice, and runs its evals to prove it didn't
+  get worse.
+- **local model tier.** with ollama running, classification goes local:
+  free, private, sub-second. claude stays the brain.
 
 ## what's in here
 
@@ -104,6 +118,7 @@ wake instead of pretending to be a data center.
 ## docs
 
 - `docs/runbook.md` what to do when something goes red
+- `docs/deploy-substrate.md` true 24/7 on a mac mini or vps
 - `docs/voice-shortcut.md` ios shortcut setup
 - `docs/mobile-access.md` tailscale setup for phone
 - `docs/demo.md` a 60 second walkthrough

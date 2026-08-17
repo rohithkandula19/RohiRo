@@ -1,0 +1,20 @@
+# ro api on an always-on linux host (vps or home server on your tailnet).
+# listeners run in-process, so this one unit is the whole brain.
+#   sudo cp infra/systemd/ro-api.service /etc/systemd/system/
+#   sudo systemctl enable --now ro-api
+[Unit]
+Description=ro api (supervisor + listeners + scheduler)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ro
+WorkingDirectory=/home/ro/RohiRo
+ExecStart=/home/ro/.local/bin/uv run uvicorn api.main:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
