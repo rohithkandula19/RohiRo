@@ -56,21 +56,42 @@ async def classify(text: str) -> dict[str, Any]:
     if not text.strip():
         return {"domains": ["chat"], "intent": "", "needs_action": False}
 
+    def _parse(raw: str) -> dict[str, Any] | None:
+        raw = raw.strip()
+        if raw.startswith("```"):
+            raw = raw.strip("`")
+            if raw.lower().startswith("json"):
+                raw = raw[4:]
+        try:
+            parsed = json.loads(raw)
+            return parsed if isinstance(parsed, dict) else None
+        except Exception:
+            return None
+
     try:
-        resp = await claude_client.message(
-            model=settings.model_cheap,
-            system=CLASSIFY_PROMPT,
-            messages=[{"role": "user", "content": text}],
-            max_tokens=200,
-            temperature=0.0,
-        )
-        body = "".join(b.text for b in resp.content if b.type == "text").strip()
-        # tolerate fences.
-        if body.startswith("```"):
-            body = body.strip("`")
-            if body.lower().startswith("json"):
-                body = body[4:]
-        result = json.loads(body)
+        # local tier first: free, private, sub-second when ollama is up.
+        # any miss (unset, down, bad json) falls through to claude.
+        result = None
+        try:
+            from api.observability import llm_local
+            local = await llm_local.chat(system=CLASSIFY_PROMPT, user=text, max_tokens=200)
+            if local:
+                result = _parse(local)
+        except Exception:
+            result = None
+
+        if result is None:
+            resp = await claude_client.message(
+                model=settings.model_cheap,
+                system=CLASSIFY_PROMPT,
+                messages=[{"role": "user", "content": text}],
+                max_tokens=200,
+                temperature=0.0,
+            )
+            body = "".join(b.text for b in resp.content if b.type == "text").strip()
+            result = _parse(body)
+        if result is None:
+            raise ValueError("classifier returned unparseable output")
         domains = result.get("domains") or ["chat"]
         domains = [d for d in domains if d in DOMAINS] or ["chat"]
         return {
