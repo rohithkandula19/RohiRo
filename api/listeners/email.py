@@ -16,11 +16,11 @@ from __future__ import annotations
 
 import asyncio
 import re
-import uuid
 from typing import Optional
 
 from api.config import secrets
 from api.integrations import gmail
+from api.listeners import gateway
 from api.memory.db import db
 from api.memory.tree import write_event as tree_write
 from api.observability.logging import log
@@ -70,20 +70,18 @@ async def _maybe_reply(thread_id: str, subject: str, sender: str) -> Optional[st
         return None
 
     try:
-        from api.agents.comms.agent import comms_agent
-
+        # through the supervisor: classification, memory, traces, approval
+        # gate. reply=None because email replies stay draft-and-approve; the
+        # comms agent opens the approval card, nothing sends directly.
         instruction = (
             f"{last.from_name or last.from_email} emailed me: subject \"{full.subject}\".\n\n"
             f"last message body:\n---\n{(last.body or '')[:3000]}\n---\n\n"
             f"draft a reply via gmail to {last.from_email}."
         )
-        result = await comms_agent.run(
-            session_id=str(uuid.uuid4()),
-            user_text=instruction,
-            context={"gmail_thread_id": thread_id, "gmail_from": last.from_email},
+        result = await gateway.handle_inbound(
+            channel="email", chat_key=thread_id, text=instruction, reply=None,
         )
-        if result.actions_opened:
-            return str(result.actions_opened[0])
+        return result.get("session_id")
     except Exception:
         log.exception("gmail listener dispatch failed", thread_id=thread_id)
     return None

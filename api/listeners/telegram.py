@@ -17,10 +17,10 @@ from __future__ import annotations
 
 import asyncio
 import re
-import uuid
 from typing import Optional
 
 from api.integrations import telegram as tg
+from api.listeners import gateway
 from api.memory.db import db
 from api.memory.tree import write_event as tree_write
 from api.observability.logging import log
@@ -54,27 +54,26 @@ async def _set_offset(update_id: int) -> None:
 
 
 async def _maybe_reply(u: tg.TGUpdate) -> Optional[str]:
-    """draft a reply if this message addresses ro."""
+    """route a message that addresses ro through the gateway.
+
+    the sender is already owner-gated by the caller. dms are the ro channel,
+    so the supervisor's reply goes straight back to the chat (a write to your
+    own system). group messages still need a mention.
+    """
     is_dm = u.chat_kind == "private"
     has_mention = bool(MENTION_RE.search(u.text))
     if not (is_dm or has_mention):
         return None
     try:
-        from api.agents.comms.agent import comms_agent
+        chat_key = str(u.chat_id)
 
-        prefix = ("DM" if is_dm else f"in '{u.chat_title}'")
-        instruction = (
-            f"{u.from_name or 'someone'} just messaged me on telegram ({prefix}): "
-            f"\"{u.text}\"\n\n"
-            f"draft a reply via telegram to chat_id={u.chat_id}."
+        async def _reply(text: str) -> None:
+            await tg.send_message(u.chat_id, text)
+
+        result = await gateway.handle_inbound(
+            channel="telegram", chat_key=chat_key, text=u.text, reply=_reply,
         )
-        result = await comms_agent.run(
-            session_id=str(uuid.uuid4()),
-            user_text=instruction,
-            context={"telegram_chat_id": u.chat_id, "telegram_from": u.from_name},
-        )
-        if result.actions_opened:
-            return str(result.actions_opened[0])
+        return result.get("session_id")
     except Exception:
         log.exception("telegram dispatch failed", update_id=u.update_id)
     return None

@@ -73,16 +73,14 @@ async def whatsapp_inbound(request: Request) -> str:
     # 2. mention → draft a reply
     if MENTION_RE.search(body):
         try:
-            from api.agents.comms.agent import comms_agent
+            from api.listeners import gateway
 
             instruction = (
                 f"{profile_name or sender} just whatsapped me: \"{body}\"\n\n"
                 f"draft a reply via whatsapp to {sender}."
             )
-            await comms_agent.run(
-                session_id=str(uuid.uuid4()),
-                user_text=instruction,
-                context={"whatsapp_to": sender, "whatsapp_from_name": profile_name},
+            await gateway.handle_inbound(
+                channel="whatsapp", chat_key=sender, text=instruction, reply=None,
             )
         except Exception:
             log.exception("whatsapp dispatch failed", sid=msg_sid)

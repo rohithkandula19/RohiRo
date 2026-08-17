@@ -210,6 +210,59 @@ def _list_recent_inbound(since_rowid: int, limit: int) -> list[InboundMessage]:
         return out
 
 
+async def channel_messages(channel_key: str, since_rowid: int = 0, limit: int = 50) -> list[InboundMessage]:
+    """all new messages in the ro channel, regardless of is_from_me.
+
+    the ro channel is matched by chat_identifier, display name, or member
+    handle. in the self chat every row reads as sent (same apple id from
+    phone and mac), so the caller separates ro's own replies via the
+    gateway's sent-text tracking, not this query.
+    """
+    return await asyncio.to_thread(_channel_messages, channel_key, since_rowid, limit)
+
+
+def _channel_messages(channel_key: str, since_rowid: int, limit: int) -> list[InboundMessage]:
+    needle = channel_key.strip().lower()
+    if not needle:
+        return []
+    with _connect() as c:
+        rows = c.execute(
+            """
+            select m.rowid, m.text, m.date, h.id, cmj.chat_id,
+                   coalesce(c2.display_name, ''), coalesce(c2.chat_identifier, '')
+            from message m
+            left join handle h on h.rowid = m.handle_id
+            join chat_message_join cmj on cmj.message_id = m.rowid
+            join chat c2 on c2.rowid = cmj.chat_id
+            where m.rowid > ?
+              and coalesce(m.text, '') != ''
+              and (
+                lower(coalesce(c2.chat_identifier, '')) like ?
+                or lower(coalesce(c2.display_name, '')) like ?
+                or cmj.chat_id in (
+                    select chj.chat_id from chat_handle_join chj
+                    join handle h2 on h2.rowid = chj.handle_id
+                    where lower(coalesce(h2.id, '')) like ?
+                )
+              )
+            order by m.rowid asc
+            limit ?
+            """,
+            (since_rowid, f"%{needle}%", f"%{needle}%", f"%{needle}%", limit),
+        ).fetchall()
+        return [
+            InboundMessage(
+                rowid=int(rowid),
+                text=(text or "").strip(),
+                from_handle=(handle or "") or (ident or ""),
+                chat_id=int(chat_id or 0),
+                chat_display=(display or "").strip() or (ident or "(ro channel)"),
+                sent_at=_to_iso(date),
+            )
+            for rowid, text, date, handle, chat_id, display, ident in rows
+        ]
+
+
 async def recent_with(name_or_handle: str, limit: int = 20) -> list[Message]:
     return await asyncio.to_thread(_recent_with, name_or_handle, limit)
 

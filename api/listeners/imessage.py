@@ -1,35 +1,38 @@
-"""inbound imessage listener.
+"""inbound imessage listener. the ro channel.
 
-every 30s, scans chat.db for new inbound messages (rowid > watermark).
+every 15s, scans chat.db for new messages in the ro channel (rowid > watermark).
+the ro channel is the chat named by the `imessage_channel` keychain key: your
+self chat (text your own number) or a dedicated contact. one addressing
+policy, fail closed: without the key the listener refuses to start.
 
-for each new message:
-  1. write a raw_event so the memory tree picks it up
-  2. if the text mentions ro ("@ro", "hey ro", "ro:" at start of message),
-     run the comms agent against it — that drafts a reply and opens an
-     approval card. macOS notification fires when the draft is ready.
+every message in the channel is for ro, no mention prefix needed. replies go
+straight back into the channel (texting you back is a write to your own
+system). loop prevention: in the self chat ro's replies land in chat.db
+indistinguishable from yours (same apple id, is_from_me cannot discriminate),
+so the gateway records a hash of everything it sends and the poll skips
+matching rows.
 
-watermark (highest rowid seen) is stored in `seen_keys` under
-('imessage_listener', 'last_rowid'). first run uses the current highest
-rowid so we don't backfill history.
+watermark (highest rowid seen) persists in `seen_keys` so a restart never
+replays or double-answers.
 """
 
 from __future__ import annotations
 
 import asyncio
-import re
-import uuid
-from typing import Optional
 
+from api.config import secrets
 from api.integrations import imessage as imsg
+from api.listeners import gateway
 from api.memory.db import db
 from api.memory.tree import write_event as tree_write
 from api.observability.logging import log
 
-POLL_INTERVAL_S = 30
-MENTION_RE = re.compile(
-    r"(?:(?:\bhey\s+ro\b)|(?:@ro\b)|(?:^\s*ro[\s,:!?-]))",
-    re.IGNORECASE,
-)
+POLL_INTERVAL_S = 15
+CHANNEL = "imessage"
+
+
+def _channel_key() -> str:
+    return (secrets.get("imessage_channel") or "").strip()
 
 
 async def _get_watermark() -> int:
@@ -52,99 +55,95 @@ async def _set_watermark(rowid: int) -> None:
     )
 
 
-async def _bootstrap_watermark() -> int:
-    """on first run, seed the watermark with the current max rowid so we don't
-    replay every message in chat.db on startup."""
-    msgs = await imsg.list_recent_inbound(since_rowid=0, limit=10000)
-    if not msgs:
-        return -1
-    max_rowid = max(m.rowid for m in msgs)
+async def _bootstrap_watermark(channel_key: str) -> int:
+    """on first run, seed the watermark at the channel's current max rowid so
+    we don't replay history."""
+    msgs = await imsg.channel_messages(channel_key, since_rowid=0, limit=10000)
+    max_rowid = max((m.rowid for m in msgs), default=0)
     await _set_watermark(max_rowid)
     log.info("imessage listener bootstrapped watermark", rowid=max_rowid)
     return max_rowid
-
-
-async def _maybe_reply(msg: imsg.InboundMessage) -> Optional[str]:
-    """if the inbound text mentions ro, dispatch to the comms agent to draft
-    a reply. returns the opened action_id, if any."""
-    if not MENTION_RE.search(msg.text):
-        return None
-    try:
-        from api.agents.comms.agent import comms_agent
-
-        # phrase the request as ro would have heard it
-        instruction = (
-            f"{msg.chat_display} just texted me on imessage: \"{msg.text}\"\n\n"
-            f"draft a reply via imessage to {msg.from_handle or msg.chat_display}."
-        )
-        result = await comms_agent.run(
-            session_id=str(uuid.uuid4()),
-            user_text=instruction,
-            context={},
-        )
-        if result.actions_opened:
-            return str(result.actions_opened[0])
-    except Exception:
-        log.exception("imessage mention dispatch failed", rowid=msg.rowid)
-    return None
 
 
 async def run_once() -> dict[str, int]:
     """one poll iteration. returns counts for logging."""
     if not imsg.configured():
         return {"skipped": 1}
+    channel_key = _channel_key()
+    if not channel_key:
+        return {"skipped": 1, "reason_channel_unset": 1}
 
     watermark = await _get_watermark()
     if watermark < 0:
-        watermark = await _bootstrap_watermark()
+        await _bootstrap_watermark(channel_key)
         return {"bootstrapped": 1}
 
-    msgs = await imsg.list_recent_inbound(since_rowid=watermark, limit=50)
+    msgs = await imsg.channel_messages(channel_key, since_rowid=watermark, limit=50)
     if not msgs:
         return {"new": 0}
 
     new = 0
     replies = 0
+    skipped_own = 0
     highest = watermark
     for m in msgs:
-        new += 1
         highest = max(highest, m.rowid)
 
-        # capture into memory tree
+        # skip ro's own replies (sent-text tracking; see module docstring)
+        if await gateway.was_recently_sent(CHANNEL, channel_key, m.text):
+            skipped_own += 1
+            continue
+        new += 1
+
         try:
             await tree_write(
                 source="imessage",
                 kind="received",
                 actor="external",
-                summary=f"iMessage from {m.chat_display}: {m.text[:160]}",
-                payload={
-                    "rowid": m.rowid, "from": m.from_handle,
-                    "chat": m.chat_display, "text": m.text[:1500],
-                },
+                summary=f"ro channel: {m.text[:160]}",
+                payload={"rowid": m.rowid, "chat": m.chat_display, "text": m.text[:1500]},
             )
         except Exception:
             log.warning("imessage tree write failed", rowid=m.rowid)
 
-        # if it mentions ro, dispatch
-        action_id = await _maybe_reply(m)
-        if action_id:
+        target = m.from_handle or channel_key
+
+        async def _reply(text: str, _target: str = target) -> None:
+            ok = await imsg.send_message(_target, text)
+            if not ok:
+                raise RuntimeError("imessage reply send failed")
+
+        result = await gateway.handle_inbound(
+            channel=CHANNEL, chat_key=channel_key, text=m.text, reply=_reply,
+        )
+        if result.get("text"):
             replies += 1
-            log.info("imessage mention triggered reply draft", rowid=m.rowid, action_id=action_id)
 
     await _set_watermark(highest)
-    return {"new": new, "replies_drafted": replies, "watermark": highest}
+    out = {"new": new, "replies": replies, "watermark": highest}
+    if skipped_own:
+        out["skipped_own"] = skipped_own
+    return out
 
 
 async def loop() -> None:
-    """background task entry. uses bootstrap + poll loop."""
-    # let the api come up
+    """background task entry."""
     await asyncio.sleep(8)
 
     if not imsg.configured():
         log.warning("imessage listener disabled — chat.db not readable (grant Full Disk Access)")
         return
 
-    log.info("imessage listener started", poll_s=POLL_INTERVAL_S)
+    # fail closed: one addressing policy. without a named ro channel we would
+    # have to guess which chats may command ro, and guessing is the vuln.
+    if not _channel_key():
+        log.error(
+            "imessage listener refused to start — imessage_channel not set. "
+            "run: keyring set ro imessage_channel  (your own number, email, or a chat name)"
+        )
+        return
+
+    log.info("imessage listener started", poll_s=POLL_INTERVAL_S, channel=_channel_key())
     while True:
         try:
             counts = await run_once()
