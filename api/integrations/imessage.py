@@ -56,6 +56,7 @@ class InboundMessage:
     chat_id: int
     chat_display: str
     sent_at: str
+    from_me: bool = False  # set by the backfill reader; listeners ignore it
 
 
 def configured() -> bool:
@@ -261,6 +262,42 @@ def _channel_messages(channel_key: str, since_rowid: int, limit: int) -> list[In
             )
             for rowid, text, date, handle, chat_id, display, ident in rows
         ]
+
+
+async def all_messages(since_rowid: int = 0, limit: int = 2000) -> list[InboundMessage]:
+    """every message above the rowid, any chat, any direction. the total
+    recall backfill reader. from_me is preserved on the row."""
+    return await asyncio.to_thread(_all_messages, since_rowid, limit)
+
+
+def _all_messages(since_rowid: int, limit: int) -> list[InboundMessage]:
+    with _connect() as c:
+        rows = c.execute(
+            """
+            select m.rowid, m.text, m.is_from_me, m.date, h.id, cmj.chat_id,
+                   coalesce(c2.display_name, ''), coalesce(c2.chat_identifier, '')
+            from message m
+            left join handle h on h.rowid = m.handle_id
+            left join chat_message_join cmj on cmj.message_id = m.rowid
+            left join chat c2 on c2.rowid = cmj.chat_id
+            where m.rowid > ? and coalesce(m.text, '') != ''
+            order by m.rowid asc
+            limit ?
+            """,
+            (since_rowid, limit),
+        ).fetchall()
+        out: list[InboundMessage] = []
+        for rowid, text, is_from_me, date, handle, chat_id, display, ident in rows:
+            out.append(InboundMessage(
+                rowid=int(rowid),
+                text=(text or "").strip(),
+                from_handle=(handle or "") or (ident or ""),
+                chat_id=int(chat_id or 0),
+                chat_display=(display or "").strip() or (ident or "(unknown)"),
+                sent_at=_to_iso(date),
+                from_me=bool(is_from_me),
+            ))
+        return out
 
 
 async def recent_with(name_or_handle: str, limit: int = 20) -> list[Message]:

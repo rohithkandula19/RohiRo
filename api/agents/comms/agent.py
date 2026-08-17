@@ -233,6 +233,14 @@ class CommsAgent(Agent):
         sys = await _voice_for("gmail")
         if profile.strip():
             sys += "\n\n## ro's profile\n\n" + profile.strip()
+        # relationship register: how you actually talk to this person
+        try:
+            from api.memory.dossiers import dossier_for
+            dossier = await dossier_for(last.from_email or "")
+            if dossier:
+                sys += "\n\n## about this person (private dossier)\n\n" + dossier
+        except Exception:
+            pass
 
         user = (
             f"the previous message in the thread was from {last.from_name} <{last.from_email}>:\n\n"

@@ -98,6 +98,42 @@ async def add_contact(payload: ContactIn) -> dict[str, Any]:
     return _serialize(row)
 
 
+@router.get("/archive/search")
+async def archive_search(q: str, limit: int = 20) -> list[dict[str, Any]]:
+    """total recall: search the lifetime corpus (fts, vault rows excluded
+    outside the vault lane)."""
+    from api.memory.backfill import search_archive
+    from api.observability import lanes
+    return await search_archive(q, limit=min(limit, 50), vault_visible=lanes.get_lane() == "vault")
+
+
+@router.get("/loops")
+async def get_open_loops() -> list[dict[str, Any]]:
+    from api.memory.commitments import open_loops
+    return await open_loops()
+
+
+@router.post("/loops/{commitment_id}/resolve")
+async def resolve_loop(commitment_id: str, status: str = "done") -> dict[str, Any]:
+    from api.memory.commitments import resolve
+    try:
+        ok = await resolve(commitment_id, status)
+    except ValueError as e:
+        from fastapi import HTTPException
+        raise HTTPException(400, str(e)) from e
+    return {"ok": ok}
+
+
+@router.get("/dossiers/{contact}")
+async def get_dossier(contact: str) -> dict[str, Any]:
+    from api.memory.dossiers import dossier_for
+    md = await dossier_for(contact)
+    from fastapi import HTTPException
+    if md is None:
+        raise HTTPException(404, "no dossier for that contact yet")
+    return {"contact": contact, "dossier": md}
+
+
 @router.get("/decisions")
 async def list_decisions(limit: int = 50) -> list[dict[str, Any]]:
     rows = await db.fetch(

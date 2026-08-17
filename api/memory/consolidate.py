@@ -106,6 +106,20 @@ async def _summarize_session(session_id) -> bool:
         json.dumps({"kind": "consolidated", "turns": len(turns),
                     "span_end": turns[-1]["created_at"].isoformat()}),
     )
+    # total recall: raw turns move to the archive instead of vanishing.
+    # summaries stay in conversations for retrieval; verbatim history stays
+    # queryable forever. reverses the earlier delete decision, logged in
+    # DECISIONS.md — the archive costs disk, not inference.
+    await db.execute(
+        """insert into archive_messages (source, external_id, contact_key, sender, from_me, body, sent_at)
+           select 'conversation', c.id::text, c.session_id::text, c.role,
+                  c.role = 'assistant', c.body, c.created_at
+           from conversations c
+           where c.session_id = $1 and c.role in ('user', 'assistant')
+             and c.created_at < now() - make_interval(days => $2)
+           on conflict (source, external_id) do nothing""",
+        session_id, SUMMARIZE_AFTER_DAYS,
+    )
     await db.execute(
         """delete from conversations
            where session_id = $1 and role in ('user', 'assistant')
@@ -139,6 +153,30 @@ async def run() -> None:
     await db.execute(
         "delete from conversations where created_at < now() - interval '180 days' and length(body) < 40 and role != 'summary'"
     )
+
+    # nightly companions: keep the archive fresh, mine open loops, refresh
+    # relationship dossiers. each is independent and best-effort.
+    try:
+        from api.memory.backfill import backfill_imessage
+        res = await backfill_imessage()
+        if res.get("archived"):
+            log.info("archive refreshed", **{k: str(v) for k, v in res.items()})
+    except Exception:
+        log.warning("nightly archive refresh failed")
+    try:
+        from api.memory.commitments import extract
+        res = await extract()
+        if res.get("saved"):
+            log.info("open loops mined", **{k: str(v) for k, v in res.items()})
+    except Exception:
+        log.warning("open loops extraction failed")
+    try:
+        from api.memory.dossiers import build_dossiers
+        res = await build_dossiers()
+        if res.get("built"):
+            log.info("dossiers refreshed", **{k: str(v) for k, v in res.items()})
+    except Exception:
+        log.warning("dossier build failed")
 
     log.info("consolidation done")
 

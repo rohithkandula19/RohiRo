@@ -40,6 +40,8 @@ async def build_digest() -> dict[str, Any]:
     sections["yesterday"] = await _yesterday_section()
     sections["pending"] = await _pending_section()
     sections["people"] = await _people_section()
+    sections["open_loops"] = await _open_loops_section()
+    sections["unanswered_texts"] = await _unanswered_texts_section()
 
     markdown = await _weave(sections)
     return {"markdown": markdown, "sections": sections}
@@ -115,6 +117,40 @@ async def _pending_section() -> dict[str, Any] | None:
     return {"pending": [{"tool": r["tool"], "description": r["description"]} for r in rows]}
 
 
+async def _open_loops_section() -> dict[str, Any] | None:
+    try:
+        from api.memory.commitments import open_loops
+        loops = await open_loops(limit=8)
+        if not loops:
+            return None
+        return {"loops": [
+            {"direction": l["direction"], "who": l["who"], "what": l["what"],
+             "due": l["due_hint"], "age_days": l["age_days"]}
+            for l in loops
+        ]}
+    except Exception as e:
+        log.warning("digest open loops section failed", error=str(e))
+        return None
+
+
+async def _unanswered_texts_section() -> dict[str, Any] | None:
+    """imessage concierge: threads where the last word is theirs, aging."""
+    try:
+        from api.integrations import imessage as imsg
+        if not imsg.configured():
+            return None
+        threads = await imsg.list_recent_threads(limit=15)
+        waiting = [
+            {"who": t.display_name, "last": (t.last_text or "")[:120]}
+            for t in threads
+            if not t.last_from_me
+        ][:6]
+        return {"waiting": waiting} if waiting else None
+    except Exception as e:
+        log.warning("digest unanswered texts section failed", error=str(e))
+        return None
+
+
 async def _people_section() -> dict[str, Any] | None:
     rows = await db.fetch(
         """select name, kind, seen_count from entities
@@ -161,6 +197,20 @@ def _structured_fallback(sections: dict[str, Any]) -> str:
         names = ", ".join(p["name"] for p in ppl["recent"])
         lines.append("## recently active")
         lines.append(names)
+        lines.append("")
+    loops = sections.get("open_loops")
+    if loops and loops["loops"]:
+        lines.append("## open loops")
+        for l in loops["loops"]:
+            who = f" ({l['who']})" if l["who"] else ""
+            due = f" — {l['due']}" if l["due"] else ""
+            lines.append(f"- [{l['direction']}]{who} {l['what']}{due} · {l['age_days']}d old")
+        lines.append("")
+    waiting = sections.get("unanswered_texts")
+    if waiting and waiting["waiting"]:
+        lines.append("## texts waiting on you")
+        for w in waiting["waiting"]:
+            lines.append(f"- {w['who']}: {w['last']}")
         lines.append("")
     y = sections.get("yesterday")
     if y:
