@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api.config import secrets, settings
 from api.eval.voice_learner import learn_voice
-from api.listeners import email as email_listener, imessage as imessage_listener, telegram as telegram_listener
+from api.listeners import ambient as ambient_listener, email as email_listener, imessage as imessage_listener, telegram as telegram_listener
 from api.memory.autofetch import run_once as autofetch_run_once
 from api.memory.db import db
 from api.memory.entities import run_extraction as entities_run
@@ -146,6 +146,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         tasks.append(asyncio.create_task(imessage_listener.loop()))
         tasks.append(asyncio.create_task(telegram_listener.loop()))
         tasks.append(asyncio.create_task(email_listener.loop()))
+        tasks.append(asyncio.create_task(ambient_listener.loop()))
         yield
     finally:
         for t in tasks:

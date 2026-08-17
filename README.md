@@ -46,6 +46,26 @@ without your yes.
   get worse.
 - **local model tier.** with ollama running, classification goes local:
   free, private, sub-second. claude stays the brain.
+- **vault lanes + airgap.** tag sources as vault (a contact, a channel, a
+  domain) and they are only ever processed on-device — the taint follows
+  the data into memory, so vault rows never enter a cloud-bound prompt.
+  airgap mode does it for everything, with a switch.
+- **signed egress ledger.** every outward byte gets a hash-chained receipt
+  minted at the approval gate. /api/audit/verify recomputes the chain:
+  "nothing sent without your yes" is a query, not a promise.
+- **total recall.** backfill your entire chat.db and gmail into a lifetime
+  local corpus with no retention limits. consolidation archives, never
+  forgets. ask what the landlord promised in 2019.
+- **relationship register.** nightly per-person dossiers from your whole
+  shared history; drafts to that person sound like you-with-them.
+- **open loops.** promises mined from sent messages, both directions,
+  surfaced in the digest until closed.
+- **shadow mode.** dry-run any playbook against the real supervisor with
+  guaranteed zero egress; review the would-have-done tape before arming.
+- **ambient triggers.** filesystem changes fire playbooks. a datacenter
+  bot cannot see your Downloads folder move.
+- **fork & export.** `ro export` tars your entire agent — memory, history,
+  ledger, playbooks — restorable anywhere. a folder, not an account.
 
 ## what's in here
 

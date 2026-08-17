@@ -79,6 +79,14 @@ def stop() -> None:
 
 
 @app.command()
+def export() -> None:
+    """export your whole agent (db dump + playbooks) to ~/ro-exports."""
+
+    from api.export import main as export_main
+    asyncio.run(export_main())
+
+
+@app.command()
 def playbooks() -> None:
     """list saved playbooks."""
 

@@ -98,3 +98,18 @@ what is fully runnable:
 - weekly self-review: distills 7 days of decisions into learned-style rules in the profile, refreshes voice rules, runs the memory evals when keyed, reports through digest channels. ro measurably improves weekly or the evals say otherwise.
 - two more tables had no ddl: learned_voice and voice_signals (voice learner wrote to them since the last commit landed them unbacked). committed with a tool column the learner expects.
 - always-on substrate documented: mac mini (full fidelity incl imessage) or linux vps (systemd units shipped, no imessage). laptop stays the default.
+
+## 2026-08-17 phase 3, moat wave (panel-reviewed: 5 lenses, adversarial judge)
+
+- processing lanes: vault sources (channels, contacts, domains, addresses) and a global airgap switch, enforced where bytes leave — the claude wrapper raises, embeddings store zeros. taint follows data into memory; retrieval never assembles a vault row into a cloud-bound prompt. minimization by architecture, not policy.
+- vault/airgap turns run a local-only reply path (ollama, no tools) with honest degradation. persisted tainted.
+- signed egress ledger: hash-chained receipts for every outward byte (approval flip, self-channel reply, digest), advisory-lock serialized, /api/audit/verify recomputes the chain. honest scope noted in the module: proves integrity, not provenance against local root.
+- shadow mode: playbook dry runs land every outward action as a simulated card, never claimable, zero egress, would-have-done tape returned for review before arming.
+- glass-box learning: self-review proposes learned-style rules through an approval card with evidence; profile changes only through the gate.
+- total recall: archive_messages lifetime corpus (chat.db resumable backfill, year-windowed gmail sweeps). consolidation now archives raw turns instead of deleting — reversing the 2026-05-01 delete decision, which was made when metered claude was the only summarizer. disk is cheap; memory is the moat.
+- relationship register: nightly per-contact dossiers from the archived history, injected into drafts to that person.
+- open loops: commitments mined nightly (local model first), digest surfaces them with age.
+- imessage concierge: digest lists threads where the last word is theirs.
+- ambient triggers: watch_paths preference; filesystem changes fire channel-file triggers into playbooks.
+- fork and estate export: ro export tars the full db dump + playbooks + restore doc. secrets never leave the keychain. the agent is a folder, not an account.
+- skipped by choice: ambient always-on listening (all-party-consent legal risk flagged by the review panel), speculative rehearsal and watcher swarm (refuted as moats — google ships both at scale).
