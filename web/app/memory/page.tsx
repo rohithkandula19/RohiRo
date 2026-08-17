@@ -1,6 +1,7 @@
 import { PageHeader } from "@/components/editorial/PageHeader";
 import { Divider } from "@/components/editorial/Divider";
 import { MemoryWorkspace } from "@/components/memory/MemoryWorkspace";
+import { LoopsCard } from "@/components/memory/LoopsCard";
 
 export default function MemoryPage() {
   return (
@@ -8,11 +9,11 @@ export default function MemoryPage() {
       <PageHeader
         kicker="what i know"
         title="memory."
-        subtitle="profile is the source of truth. contacts, decisions, conversation history, everything searchable."
+        subtitle="profile is the source of truth. contacts, decisions, lifetime archive, open loops."
       />
       <MemoryWorkspace />
-      <Divider label="search history" />
-      <div className="card text-[13px] text-ink-muted">use the search box above to query past conversations.</div>
+      <Divider label="open loops" />
+      <LoopsCard />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { Divider } from "@/components/editorial/Divider";
 import { SettingsView } from "@/components/settings/SettingsView";
 import { PushCard } from "@/components/settings/PushCard";
 import { LivenessCard } from "@/components/settings/LivenessCard";
+import { LanesCard } from "@/components/settings/LanesCard";
 
 export default function SettingsPage() {
   return (
@@ -13,6 +14,8 @@ export default function SettingsPage() {
         subtitle="connections, models, keys (last 4 only), backup, voice."
       />
       <SettingsView />
+      <Divider label="lanes" />
+      <LanesCard />
       <Divider label="liveness" />
       <LivenessCard />
       <Divider label="notifications" />

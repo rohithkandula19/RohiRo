@@ -41,6 +41,62 @@ def _session(value: Optional[str]) -> uuid.UUID:
         return uuid.uuid4()
 
 
+@router.get("/sessions")
+async def list_sessions(limit: int = 30) -> list[dict[str, Any]]:
+    """recent conversations across channels, newest activity first. feeds
+    the thread view."""
+    from api.memory.db import db
+    rows = await db.fetch(
+        """select cs.channel, cs.chat_key, cs.session_id::text as session_id,
+                  max(c.created_at) as last_at, count(c.id) as turns
+           from channel_sessions cs
+           left join conversations c on c.session_id = cs.session_id
+           group by cs.channel, cs.chat_key, cs.session_id
+           order by max(c.created_at) desc nulls last
+           limit $1""",
+        limit,
+    )
+    return [
+        {
+            "channel": r["channel"], "chat_key": r["chat_key"],
+            "session_id": r["session_id"], "turns": r["turns"],
+            "last_at": r["last_at"].isoformat() if r["last_at"] else None,
+        }
+        for r in rows
+    ]
+
+
+@router.get("/sessions/{session_id}/transcript")
+async def session_transcript(session_id: str, limit: int = 100) -> list[dict[str, Any]]:
+    """the thread: turns interleaved with the actions they opened."""
+    from api.memory.db import db
+    try:
+        sid = uuid.UUID(session_id)
+    except ValueError:
+        from fastapi import HTTPException
+        raise HTTPException(400, "bad session id")
+    turns = await db.fetch(
+        """select role, body, vault, created_at from conversations
+           where session_id = $1 and role in ('user','assistant','summary')
+           order by created_at asc limit $2""",
+        sid, limit,
+    )
+    actions = await db.fetch(
+        """select tool, description, status, created_at from action_log
+           where session_id = $1 order by created_at asc limit 50""",
+        sid,
+    )
+    events: list[dict[str, Any]] = []
+    for t in turns:
+        events.append({"kind": "turn", "role": t["role"], "body": t["body"],
+                       "vault": t["vault"], "at": t["created_at"].isoformat()})
+    for a in actions:
+        events.append({"kind": "action", "tool": a["tool"], "description": a["description"],
+                       "status": a["status"], "at": a["created_at"].isoformat()})
+    events.sort(key=lambda e: e["at"])
+    return events
+
+
 @router.post("", response_model=ChatOut)
 async def chat(payload: ChatIn) -> ChatOut:
     session_id = _session(payload.session_id)
