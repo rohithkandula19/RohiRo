@@ -170,6 +170,64 @@ create index if not exists schedules_due_idx on schedules (enabled, next_run_at)
 -- consecutive failure counter. scheduler disables a schedule at 3.
 alter table schedules add column if not exists consecutive_failures integer not null default 0;
 
+-- vault taint: rows born in a vault lane never enter cloud-bound prompts.
+alter table conversations add column if not exists vault boolean not null default false;
+
+-- archive_messages: total recall. lifetime corpus, no retention limits.
+create table if not exists archive_messages (
+    id bigint generated always as identity primary key,
+    source text not null,               -- imessage | gmail | conversation
+    external_id text not null,          -- rowid / message id / conversation uuid
+    contact_key text not null default '',  -- handle or email of the counterparty
+    sender text not null default '',
+    from_me boolean not null default false,
+    body text not null,
+    body_tsv tsvector generated always as (to_tsvector('english', body)) stored,
+    vault boolean not null default false,
+    sent_at timestamptz,
+    archived_at timestamptz not null default now(),
+    unique (source, external_id)
+);
+create index if not exists archive_tsv_idx on archive_messages using gin (body_tsv);
+create index if not exists archive_contact_idx on archive_messages (contact_key, sent_at);
+
+-- commitments: open loops mined from sent messages, both directions.
+create table if not exists commitments (
+    id uuid primary key default gen_random_uuid(),
+    direction text not null,            -- mine | theirs
+    who text not null default '',
+    what text not null,
+    due_hint text not null default '',
+    source text not null default '',    -- imessage | gmail
+    source_ref text not null default '',
+    status text not null default 'open',  -- open | done | dropped
+    created_at timestamptz not null default now(),
+    resolved_at timestamptz
+);
+create index if not exists commitments_status_idx on commitments (status, created_at);
+
+-- egress_ledger: hash-chained record of every outward byte.
+create table if not exists egress_ledger (
+    id bigint generated always as identity primary key,
+    prev_hash text not null,
+    hash text not null,
+    action_id uuid,                     -- null for self-channel replies
+    basis text not null,                -- approval | self-channel | digest
+    channel text not null,
+    destination text not null default '',
+    payload_sha text not null,
+    created_at timestamptz not null default now()
+);
+
+-- contact_dossiers: the relationship register.
+create table if not exists contact_dossiers (
+    contact_key text primary key,
+    display_name text not null default '',
+    dossier_md text not null default '',
+    sources jsonb not null default '{}'::jsonb,
+    updated_at timestamptz not null default now()
+);
+
 -- learned_voice: per-channel tone rules derived from your edits.
 create table if not exists learned_voice (
     channel text primary key,

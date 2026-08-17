@@ -38,6 +38,51 @@ async def get_spend() -> dict[str, Any]:
     return {"today": total, "by_run": await budget.by_run_today(), "daily_cap": cap}
 
 
+class AirgapIn(BaseModel):
+    on: bool
+
+
+class VaultRulesIn(BaseModel):
+    channels: list[str] = []
+    contacts: list[str] = []
+    domains: list[str] = []
+    addresses: list[str] = []
+
+
+@router.get("/lanes")
+async def get_lanes() -> dict[str, Any]:
+    from api.observability import lanes
+    return {"airgap": await lanes.airgap_on(), "vault_rules": await lanes.vault_rules()}
+
+
+@router.post("/lanes/airgap")
+async def set_airgap(payload: AirgapIn) -> dict[str, Any]:
+    import json as _json
+    from api.memory.db import db
+    from api.observability import lanes
+    await db.execute(
+        """insert into preferences (key, value) values ($1, $2)
+           on conflict (key) do update set value = excluded.value, updated_at = now()""",
+        lanes.AIRGAP_KEY, _json.dumps(bool(payload.on)),
+    )
+    lanes.invalidate_cache()
+    return {"ok": True, "airgap": payload.on}
+
+
+@router.post("/lanes/vault")
+async def set_vault_rules(payload: VaultRulesIn) -> dict[str, Any]:
+    import json as _json
+    from api.memory.db import db
+    from api.observability import lanes
+    await db.execute(
+        """insert into preferences (key, value) values ($1, $2)
+           on conflict (key) do update set value = excluded.value, updated_at = now()""",
+        lanes.VAULT_RULES_KEY, _json.dumps(payload.model_dump()),
+    )
+    lanes.invalidate_cache()
+    return {"ok": True, "vault_rules": payload.model_dump()}
+
+
 class BudgetIn(BaseModel):
     daily_token_budget: int
 

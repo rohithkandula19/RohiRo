@@ -30,6 +30,14 @@ async def embed(text: str) -> list[float]:
 async def embed_many(texts: list[str]) -> list[list[float]]:
     if not texts:
         return []
+    # lane enforcement: vault text and airgap mode never reach the api.
+    # zeros keep the rows insertable; hybrid retrieval still finds them via fts.
+    try:
+        from api.observability import lanes
+        await lanes.check_cloud("embedding")
+    except Exception as e:
+        log.info("embedding skipped by lane", reason=str(e)[:80])
+        return [[0.0] * 1536 for _ in texts]
     cleaned = [t if t.strip() else " " for t in texts]
     try:
         resp = await _get_client().embeddings.create(model=settings.model_embed, input=cleaned)

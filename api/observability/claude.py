@@ -49,6 +49,11 @@ class ClaudeClient:
         retries: int = 2,
         fallback_model: Optional[str] = None,
     ) -> Message:
+        # lane enforcement: vault content and airgap mode never reach the api.
+        # this is the choke point — the check runs before any bytes leave.
+        from api.observability import lanes
+        await lanes.check_cloud("claude")
+
         chosen = model or settings.model_default
         attempt = 0
         last_err: Optional[Exception] = None

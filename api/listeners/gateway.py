@@ -61,6 +61,49 @@ async def was_recently_sent(channel: str, chat_key: str, text: str) -> bool:
     return row is not None
 
 
+async def _local_turn(session_id: uuid.UUID, text: str) -> str:
+    """a vault or airgap turn: local model only, memory rows tainted vault.
+
+    honest degradation: no tools, no cloud brain. the content never leaves
+    the machine, including its embedding (lane check zeroes it).
+    """
+    from api.observability import llm_local
+
+    history = await db.fetch(
+        """select role, body from conversations
+           where session_id = $1 and role in ('user','assistant')
+           order by created_at desc limit 6""",
+        session_id,
+    )
+    context = "\n".join(f"{r['role']}: {r['body'][:500]}" for r in reversed(list(history)))
+    system = (
+        "you are ro, a private local assistant. this conversation is in the "
+        "vault lane: you run fully on-device with no tools. be concise and "
+        "useful; if the user needs an action taken, tell them to ask outside "
+        "the vault lane."
+    )
+    reply = await llm_local.chat(
+        system=system,
+        user=(f"recent turns:\n{context}\n\nuser: {text}" if context else text),
+        max_tokens=400,
+    )
+    if not reply:
+        reply = (
+            "vault lane: the local model is not available (set the "
+            "ollama_model preference and start ollama). nothing was sent to "
+            "any cloud api."
+        )
+    for role, body in (("user", text), ("assistant", reply)):
+        try:
+            await db.execute(
+                "insert into conversations (session_id, role, body, vault) values ($1, $2, $3, true)",
+                session_id, role, body[:8000],
+            )
+        except Exception:
+            log.warning("vault turn persist failed")
+    return reply
+
+
 async def handle_inbound(
     *,
     channel: str,
@@ -84,13 +127,23 @@ async def handle_inbound(
     except Exception:
         log.warning("trigger matching failed", channel=channel)
 
+    # lanes: vault sources and airgap mode run on the local tier only.
+    from api.observability import lanes
+    lane = await lanes.lane_for_inbound(channel, chat_key)
+    if lane != "vault" and await lanes.airgap_on():
+        lane = "vault"  # airgap processes everything as local-only
+    lanes.set_lane(lane)
+
     budget.set_run(f"channel:{channel}")
-    try:
-        result = await run_supervisor(session_id=session_id, user_text=text)
-        out = (result.get("text") or "").strip()
-    except Exception as e:
-        log.exception("gateway supervisor run failed", channel=channel)
-        out = f"(ro hit an error: {e})"
+    if lane == "vault":
+        out = await _local_turn(session_id, text)
+    else:
+        try:
+            result = await run_supervisor(session_id=session_id, user_text=text)
+            out = (result.get("text") or "").strip()
+        except Exception as e:
+            log.exception("gateway supervisor run failed", channel=channel)
+            out = f"(ro hit an error: {e})"
 
     if reply is not None and out:
         try:

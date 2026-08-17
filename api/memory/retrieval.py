@@ -105,15 +105,23 @@ async def retrieve_relevant(query: str, *, limit: int = FINAL_CAP) -> list[dict[
 # ----- strategies -----
 
 
+def _vault_visible() -> bool:
+    """vault rows are visible only from the vault lane. the taint follows
+    the data: a cloud-bound prompt can never be assembled from vault rows."""
+    from api.observability import lanes
+    return lanes.get_lane() == "vault"
+
+
 async def _convo_bm25(query: str, cap: int) -> list[dict[str, Any]]:
     rows = await db.fetch(
         """select id::text as id, body, created_at,
                   ts_rank(body_tsv, plainto_tsquery('english', $1)) as score
            from conversations
            where body_tsv @@ plainto_tsquery('english', $1)
+             and (not vault or $3)
            order by score desc, created_at desc
            limit $2""",
-        query, cap,
+        query, cap, _vault_visible(),
     )
     return [_to_item("conversation", r) for r in rows]
 
@@ -124,9 +132,10 @@ async def _convo_vec(emb: list[float], cap: int) -> list[dict[str, Any]]:
                   1 - (embedding <=> $1::vector) as score
            from conversations
            where embedding is not null
+             and (not vault or $3)
            order by embedding <=> $1::vector
            limit $2""",
-        emb, cap,
+        emb, cap, _vault_visible(),
     )
     return [_to_item("conversation", r) for r in rows]
 
