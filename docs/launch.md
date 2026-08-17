@@ -49,6 +49,11 @@ itself.
 > answer to wanting that class of product with the trust model inverted:
 > my hardware, my rules, receipts.
 >
+> It also consumes both open agent ecosystems behind the same gate: any
+> MCP server becomes tools, any folder of Anthropic-format agent skills
+> becomes procedures. Brain via Anthropic or OpenRouter key; classifier
+> runs free on local ollama.
+>
 > MIT licensed. Setup is one guided script (macOS; Linux mostly works,
 > iMessage excepted). Would love adversarial eyes on the approval gate and
 > the injection evals — SECURITY.md has the details.

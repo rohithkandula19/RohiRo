@@ -59,7 +59,11 @@ _key() {  # _key <name> <prompt> <required> [default]
 echo
 say "keys go into the macos keychain, never into files."
 echo "  get your anthropic key at: https://console.anthropic.com/settings/keys"
-_key anthropic_api_key "anthropic api key (sk-ant-…)" yes
+say "one brain key is required: anthropic (direct, full features) or openrouter (text paths)."
+_key anthropic_api_key "anthropic api key (sk-ant-…, or leave empty to use openrouter)" no
+if ! uv run python -c "import keyring,sys; sys.exit(0 if keyring.get_password('ro','anthropic_api_key') else 1)" 2>/dev/null; then
+  _key openrouter_api_key "openrouter api key (openrouter.ai/keys)" yes
+fi
 _key imessage_channel  "your own phone number or apple id email (the ro channel)" no
 _key user_email        "your gmail address" no
 _key telegram_bot_token "telegram bot token from @BotFather (optional)" no

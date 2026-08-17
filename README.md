@@ -100,6 +100,14 @@ you can read, with a model tier that works fully offline.
   `api.mcp_server` and your other tools get ro's memory, archive, loops,
   and channels — with the approval gate below the surface where no
   client can reach.
+- **agent skills bridge.** ro speaks anthropic's open SKILL.md format:
+  point it at any folder of skills (thousands exist) and each becomes a
+  runnable procedure. `ro skills` browses the catalog; a skill cannot
+  bypass the gate because the gate is below it.
+- **two ways to a brain.** a direct anthropic key, or an openrouter key
+  running the same claude models through their gateway (text paths;
+  tool calls want the direct key). the local ollama tier works with
+  neither.
 - **fork & export.** `ro export` tars your entire agent — memory, history,
   ledger, playbooks — restorable anywhere. a folder, not an account.
   nightly backups rotate the last seven automatically.
@@ -114,7 +122,8 @@ a turborepo monorepo.
   in-process: imessage, telegram, gmail. scheduler, budget, heartbeats,
   push, playbooks all live here.
 - `cli/` `ro chat`, `ro up`/`down`, `ro doctor`, `ro export`,
-  `ro playbooks`, `ro status`.
+  `ro playbooks`, `ro skills`, `ro status`.
+- `landing/` the static launch page (github-pages ready).
 - `desktop/` menubar app: push-to-talk, conversation mode, screen sense,
   clipboard memory, pending approvals with quick approve/reject.
 - `playbooks/` your saved playbooks (gitignored, yours).
