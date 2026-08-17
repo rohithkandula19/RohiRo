@@ -936,7 +936,7 @@ function ShellDraftCard({ call, actionId }: { call: ToolCall; actionId?: string 
       </div>
       <div className="px-3.5 py-3">
         <pre className="overflow-x-auto rounded-[6px] border-l-2 border-warning bg-warning/[0.04] px-3 py-2.5 font-mono text-[12px] leading-6 text-ink">{r?.command}</pre>
-        {r?.reason ? <div className="mt-2 text-[11.5px] text-ink-subtle">// {r.reason}</div> : null}
+        {r?.reason ? <div className="mt-2 text-[11.5px] text-ink-subtle">{"// "}{r.reason}</div> : null}
       </div>
       {state === "pending" ? (
         <div className="flex items-center gap-2 border-t border-line px-3.5 py-2.5">
