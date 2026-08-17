@@ -252,24 +252,36 @@ def _parse_addr(raw: str) -> tuple[str, str]:
     return (raw.split("@")[0], raw)
 
 
+def _decode_part(part: dict[str, Any]) -> str:
+    data = part.get("body", {}).get("data")
+    if not data:
+        return ""
+    return base64.urlsafe_b64decode(data + "==").decode("utf-8", errors="replace")
+
+
+def _walk_parts(payload: dict[str, Any], mime: str) -> str:
+    """depth-first search for the first part of the given mime type.
+    multipart/alternative nested inside multipart/mixed is the common case
+    a single-level scan misses."""
+    if payload.get("mimeType") == mime:
+        text = _decode_part(payload)
+        if text:
+            return text
+    for part in payload.get("parts", []) or []:
+        found = _walk_parts(part, mime)
+        if found:
+            return found
+    return ""
+
+
 def _extract_body(payload: dict[str, Any]) -> str:
-    """find the text/plain body, falling back to the first part."""
-    if payload.get("mimeType") == "text/plain":
-        data = payload.get("body", {}).get("data")
-        if data:
-            return base64.urlsafe_b64decode(data + "==").decode("utf-8", errors="replace")
-    for part in payload.get("parts", []) or []:
-        if part.get("mimeType") == "text/plain":
-            data = part.get("body", {}).get("data")
-            if data:
-                return base64.urlsafe_b64decode(data + "==").decode("utf-8", errors="replace")
-    # html fallback (stripped naively)
-    for part in payload.get("parts", []) or []:
-        if part.get("mimeType") == "text/html":
-            data = part.get("body", {}).get("data")
-            if data:
-                html = base64.urlsafe_b64decode(data + "==").decode("utf-8", errors="replace")
-                return _strip_html(html)
+    """find the text/plain body anywhere in the part tree, html fallback."""
+    text = _walk_parts(payload, "text/plain")
+    if text:
+        return text
+    html = _walk_parts(payload, "text/html")
+    if html:
+        return _strip_html(html)
     return ""
 
 

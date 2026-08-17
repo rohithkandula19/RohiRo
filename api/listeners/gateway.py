@@ -21,6 +21,7 @@ import uuid
 from typing import Any, Awaitable, Callable, Optional
 
 from api.memory.db import db
+from api.observability import budget
 from api.observability.logging import log
 from api.supervisor import run_supervisor
 
@@ -74,6 +75,7 @@ async def handle_inbound(
     (email keeps its draft-and-approve flow).
     """
     session_id = await session_for(channel, chat_key)
+    budget.set_run(f"channel:{channel}")
     try:
         result = await run_supervisor(session_id=session_id, user_text=text)
         out = (result.get("text") or "").strip()

@@ -25,6 +25,7 @@ from api.integrations import imessage as imsg
 from api.listeners import gateway
 from api.memory.db import db
 from api.memory.tree import write_event as tree_write
+from api.observability import liveness
 from api.observability.logging import log
 
 POLL_INTERVAL_S = 15
@@ -147,8 +148,10 @@ async def loop() -> None:
     while True:
         try:
             counts = await run_once()
+            await liveness.beat("imessage_listener", ok=True)
             if counts.get("new"):
                 log.info("imessage listener tick", **counts)
-        except Exception:
+        except Exception as e:
             log.exception("imessage listener iteration failed")
+            await liveness.beat("imessage_listener", ok=False, error=str(e))
         await asyncio.sleep(POLL_INTERVAL_S)

@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import json
 import uuid
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from fastapi import APIRouter
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
 
 from api.supervisor import run_supervisor, stream_supervisor
@@ -16,14 +16,14 @@ router = APIRouter()
 
 
 class ChatTurn(BaseModel):
-    role: str
-    content: str
+    role: Literal["user", "assistant"]
+    content: str = Field(max_length=32_000)
 
 
 class ChatIn(BaseModel):
-    text: str
+    text: str = Field(min_length=1, max_length=32_000)
     session_id: Optional[str] = None
-    history: list[ChatTurn] = []
+    history: list[ChatTurn] = Field(default_factory=list, max_length=40)
 
 
 class ChatOut(BaseModel):

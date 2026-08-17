@@ -23,6 +23,7 @@ from api.integrations import telegram as tg
 from api.listeners import gateway
 from api.memory.db import db
 from api.memory.tree import write_event as tree_write
+from api.observability import liveness
 from api.observability.logging import log
 
 POLL_INTERVAL_S = 5
@@ -160,13 +161,15 @@ async def loop() -> None:
         try:
             offset = await _get_offset()
             updates = await tg.get_updates(offset=offset, timeout=LONG_POLL_TIMEOUT_S, limit=50)
+            await liveness.beat("telegram_listener", ok=True)
             if not updates:
                 continue
             counts = await _process(updates)
             if counts.get("new"):
                 log.info("telegram listener tick", **counts)
-        except Exception:
+        except Exception as e:
             log.exception("telegram listener iteration failed")
+            await liveness.beat("telegram_listener", ok=False, error=str(e))
             await asyncio.sleep(POLL_INTERVAL_S)
 
 

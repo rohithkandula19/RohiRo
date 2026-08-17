@@ -170,6 +170,25 @@ create index if not exists schedules_due_idx on schedules (enabled, next_run_at)
 -- consecutive failure counter. scheduler disables a schedule at 3.
 alter table schedules add column if not exists consecutive_failures integer not null default 0;
 
+-- heartbeats: one row per background worker / integration, latest state.
+create table if not exists heartbeats (
+    name text primary key,
+    ok boolean not null default true,
+    error text not null default '',
+    beat_at timestamptz not null default now()
+);
+
+-- spend_log: one row per claude call, attributed to the run that caused it.
+create table if not exists spend_log (
+    id bigint generated always as identity primary key,
+    run_label text not null default 'chat',
+    model text not null default '',
+    input_tokens integer not null default 0,
+    output_tokens integer not null default 0,
+    created_at timestamptz not null default now()
+);
+create index if not exists spend_log_day_idx on spend_log (created_at);
+
 -- stable session per chat channel so conversations keep context.
 create table if not exists channel_sessions (
     channel text not null,                 -- imessage | telegram | email | whatsapp

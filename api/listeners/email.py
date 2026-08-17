@@ -22,6 +22,7 @@ from api.config import secrets
 from api.integrations import gmail
 from api.listeners import gateway
 from api.memory.db import db
+from api.observability import liveness
 from api.memory.tree import write_event as tree_write
 from api.observability.logging import log
 
@@ -151,8 +152,10 @@ async def loop() -> None:
     while True:
         try:
             counts = await run_once()
+            await liveness.beat("gmail_listener", ok=True)
             if counts.get("new"):
                 log.info("gmail listener tick", **counts)
-        except Exception:
+        except Exception as e:
             log.exception("gmail listener iteration failed")
+            await liveness.beat("gmail_listener", ok=False, error=str(e))
         await asyncio.sleep(POLL_INTERVAL_S)

@@ -10,7 +10,7 @@ import asyncio
 from dataclasses import dataclass
 from typing import Any, Optional
 
-from anthropic import APIStatusError, AsyncAnthropic
+from anthropic import APIConnectionError, APIStatusError, AsyncAnthropic
 from anthropic.types import Message
 
 from api.config import secrets, settings
@@ -66,6 +66,7 @@ class ClaudeClient:
                     kwargs["tools"] = tools
                 resp = await self.client.messages.create(**kwargs)
                 self._record_usage(resp)
+                self._record_spend(resp, chosen)
                 return resp
             except APIStatusError as e:
                 last_err = e
@@ -81,6 +82,16 @@ class ClaudeClient:
                     attempt = 0
                     continue
                 raise
+            except APIConnectionError as e:
+                # network drops deserve the same retry policy as 5xx.
+                last_err = e
+                if attempt < retries:
+                    sleep_s = 0.5 * (2**attempt)
+                    log.warning("claude connection error, retrying", sleep=sleep_s)
+                    await asyncio.sleep(sleep_s)
+                    attempt += 1
+                    continue
+                raise
             except Exception as e:
                 last_err = e
                 raise
@@ -94,6 +105,22 @@ class ClaudeClient:
         self.total.output_tokens += getattr(u, "output_tokens", 0) or 0
         self.total.cache_read_tokens += getattr(u, "cache_read_input_tokens", 0) or 0
         self.total.cache_create_tokens += getattr(u, "cache_creation_input_tokens", 0) or 0
+
+    def _record_spend(self, resp: Message, model: str) -> None:
+        """persist per-call spend attributed to the current run. fire and
+        forget: accounting never blocks or fails a model call."""
+        u = getattr(resp, "usage", None)
+        if not u:
+            return
+        try:
+            from api.observability import budget
+            asyncio.get_running_loop().create_task(budget.record_usage(
+                model=model,
+                input_tokens=getattr(u, "input_tokens", 0) or 0,
+                output_tokens=getattr(u, "output_tokens", 0) or 0,
+            ))
+        except Exception:
+            pass
 
 
 claude_client = ClaudeClient()

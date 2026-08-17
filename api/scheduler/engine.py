@@ -28,6 +28,7 @@ from zoneinfo import ZoneInfo
 
 from api.memory.db import db
 from api.memory.tree import write_event as tree_write
+from api.observability import budget
 from api.observability.logging import log
 from api.supervisor import run_supervisor
 
@@ -153,8 +154,13 @@ async def fire(s: Schedule) -> dict[str, Any]:
     run, via compare-and-swap on next_run_at <= now(). a crash mid-run skips
     that occurrence instead of re-firing it on restart, and two loops can never
     fire the same occurrence twice. a broken cron spec disables the schedule
-    instead of refiring every tick.
+    instead of refiring every tick. the budget guard vetoes runs (and re-fires)
+    once the daily token budget is spent.
     """
+    allowed, why = await budget.allow_run("routine")
+    if not allowed:
+        log.warning("scheduler run vetoed by budget", schedule=s.id, why=why)
+        return {"id": s.id, "result": f"skipped: {why}"}
     if s.kind == "once":
         claimed = await db.fetchrow(
             """update schedules set enabled=false, last_run_at=now(), updated_at=now()
@@ -184,6 +190,7 @@ async def fire(s: Schedule) -> dict[str, Any]:
 
     sid = uuid.uuid4()
     failed = False
+    budget.set_run(f"routine:{s.title or s.id}")
     try:
         result = await run_supervisor(session_id=sid, user_text=s.text)
         text = (result.get("text") or "").strip()

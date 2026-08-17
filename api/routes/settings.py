@@ -8,8 +8,41 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from api.config import secrets, settings
+from api.observability import budget, liveness
 
 router = APIRouter()
+
+
+@router.get("/liveness")
+async def get_liveness() -> list[dict[str, Any]]:
+    """last heartbeat per background worker. stale or not-ok shows red in the ui."""
+    return await liveness.all_beats()
+
+
+@router.get("/spend")
+async def get_spend() -> dict[str, Any]:
+    """today's claude spend, total and per run label, plus the daily cap."""
+    from api.memory.db import db
+    total = await budget.spent_today()
+    cap_row = await db.fetchrow("select value from preferences where key = $1", budget.BUDGET_KEY)
+    cap = cap_row["value"] if cap_row else None
+    return {"today": total, "by_run": await budget.by_run_today(), "daily_cap": cap}
+
+
+class BudgetIn(BaseModel):
+    daily_token_budget: int
+
+
+@router.post("/spend/budget")
+async def set_budget(payload: BudgetIn) -> dict[str, Any]:
+    from api.memory.db import db
+    import json as _json
+    await db.execute(
+        """insert into preferences (key, value) values ($1, $2)
+           on conflict (key) do update set value = excluded.value, updated_at = now()""",
+        budget.BUDGET_KEY, _json.dumps(int(payload.daily_token_budget)),
+    )
+    return {"ok": True, "daily_token_budget": payload.daily_token_budget}
 
 
 INTEGRATIONS = [
