@@ -67,8 +67,42 @@ you can read, with a model tier that works fully offline.
   guaranteed zero egress; review the would-have-done tape before arming.
 - **ambient triggers.** filesystem changes fire playbooks. a datacenter
   bot cannot see your Downloads folder move.
+- **the crew.** hire named bots with markdown charters. they delegate to
+  each other with an explicit `>> bot: task` protocol, depth-capped, every
+  handoff logged — no hidden channels, by construction. run one bot or
+  give the whole crew a task and let the planner assign it.
+- **slash commands.** text `/status`, `/loops`, `/spend`, `/sent` in any
+  channel for instant answers with no model call. `/pause 2` silences all
+  background automation for two hours; your own chat keeps working.
+- **conversation mode.** menubar toggle: talk, ro answers aloud, the mic
+  reopens, the thread continues. voice with memory, not one-shots.
+- **screen sense.** hotkey a screenshot through on-device apple vision
+  ocr and ask ro about it. the pixels never leave the machine.
+- **browser trust tiers.** allowlist domains as read or navigate and the
+  boring browser actions stop asking. policy-approved actions stay in the
+  audit history and the ledger; clicks and form fills always ask.
+- **night shift.** at 3:30am ro embeds unvectored memories, runs db
+  hygiene, and spot-checks its evals on free local compute. the digest
+  reports what happened overnight.
+- **guest mode.** allowlist a few handles and family can text your ro — a
+  framed, actionless ro that treats your private data as off-limits, in
+  fully separate sessions.
+- **life report.** on the 1st of the month, ro writes your month: who you
+  talked to, loops opened vs closed, what it did, what it cost.
+- **body ledger.** import your apple health export into local postgres;
+  weekly summaries join the rest of your life without a cloud health
+  processor in the loop.
+- **clipboard memory.** opt-in menubar toggle; secret-shaped text is
+  never stored, everything else becomes searchable.
+- **focus-aware.** digests defer during macos focus modes and your quiet
+  hours. approval pings stay urgent and always land.
+- **ro as an mcp server.** point claude code (or any mcp client) at
+  `api.mcp_server` and your other tools get ro's memory, archive, loops,
+  and channels — with the approval gate below the surface where no
+  client can reach.
 - **fork & export.** `ro export` tars your entire agent — memory, history,
   ledger, playbooks — restorable anywhere. a folder, not an account.
+  nightly backups rotate the last seven automatically.
 
 ## what's in here
 
@@ -79,11 +113,14 @@ a turborepo monorepo.
 - `api/` fastapi + langgraph supervisor and sub-agents. listeners run
   in-process: imessage, telegram, gmail. scheduler, budget, heartbeats,
   push, playbooks all live here.
-- `cli/` `ro chat`, `ro up`, `ro down`, `ro status`, `ro playbooks`.
-- `desktop/` menubar app: talk to ro, pending approvals with quick
-  approve/reject.
+- `cli/` `ro chat`, `ro up`/`down`, `ro doctor`, `ro export`,
+  `ro playbooks`, `ro status`.
+- `desktop/` menubar app: push-to-talk, conversation mode, screen sense,
+  clipboard memory, pending approvals with quick approve/reject.
 - `playbooks/` your saved playbooks (gitignored, yours).
-- `infra/launchd/` service plists installed by `ro up`.
+- `bots/` your hired crew's charters (gitignored, yours).
+- `infra/launchd/` service plists installed by `ro up`; `infra/systemd/`
+  for an always-on linux substrate.
 
 ## quick start
 
@@ -151,6 +188,9 @@ wake instead of pretending to be a data center.
 - `docs/voice-shortcut.md` ios shortcut setup
 - `docs/mobile-access.md` tailscale setup for phone
 - `docs/demo.md` a 60 second walkthrough
+- `docs/launch.md` the show hn kit
+- `SECURITY.md` the load-bearing claims and how to verify each one
+- `CONTRIBUTING.md` the non-negotiables
 - `DECISIONS.md` every choice made along the way and why
 - `PLAN.md` the reviewed build plan this version shipped from
 
