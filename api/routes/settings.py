@@ -83,6 +83,31 @@ async def set_vault_rules(payload: VaultRulesIn) -> dict[str, Any]:
     return {"ok": True, "vault_rules": payload.model_dump()}
 
 
+class TrustIn(BaseModel):
+    rules: dict[str, str]  # {domain: "read"|"navigate"}
+
+
+@router.get("/trust")
+async def get_trust() -> dict[str, Any]:
+    from api.observability import trust
+    return {"browser_trust": await trust.rules()}
+
+
+@router.post("/trust")
+async def set_trust(payload: TrustIn) -> dict[str, Any]:
+    import json as _json
+    from api.memory.db import db
+    from api.observability import trust
+    clean = {k.lower(): v for k, v in payload.rules.items() if v in ("read", "navigate")}
+    await db.execute(
+        """insert into preferences (key, value) values ($1, $2)
+           on conflict (key) do update set value = excluded.value, updated_at = now()""",
+        trust.TRUST_KEY, _json.dumps(clean),
+    )
+    trust.invalidate_cache()
+    return {"ok": True, "browser_trust": clean}
+
+
 class BudgetIn(BaseModel):
     daily_token_budget: int
 

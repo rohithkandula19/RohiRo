@@ -42,6 +42,7 @@ async def build_digest() -> dict[str, Any]:
     sections["people"] = await _people_section()
     sections["open_loops"] = await _open_loops_section()
     sections["unanswered_texts"] = await _unanswered_texts_section()
+    sections["overnight"] = await _overnight_section()
 
     markdown = await _weave(sections)
     return {"markdown": markdown, "sections": sections}
@@ -115,6 +116,24 @@ async def _pending_section() -> dict[str, Any] | None:
     if not rows:
         return None
     return {"pending": [{"tool": r["tool"], "description": r["description"]} for r in rows]}
+
+
+async def _overnight_section() -> dict[str, Any] | None:
+    try:
+        import json as _json
+        from api.memory.db import db
+        row = await db.fetchrow(
+            "select value, updated_at from preferences where key = 'nightshift_report' and updated_at > now() - interval '20 hours'"
+        )
+        if not row:
+            return None
+        report = row["value"]
+        if isinstance(report, str):
+            report = _json.loads(report)
+        return {"report": report}
+    except Exception as e:
+        log.warning("digest overnight section failed", error=str(e))
+        return None
 
 
 async def _open_loops_section() -> dict[str, Any] | None:
@@ -212,6 +231,20 @@ def _structured_fallback(sections: dict[str, Any]) -> str:
         for w in waiting["waiting"]:
             lines.append(f"- {w['who']}: {w['last']}")
         lines.append("")
+    on = sections.get("overnight")
+    if on and on.get("report"):
+        rep = on["report"]
+        bits = []
+        emb = rep.get("embeddings", {})
+        if emb.get("embedded"):
+            bits.append(f"embedded {emb['embedded']} memories")
+        ev = rep.get("evals", {})
+        if ev.get("evals_total"):
+            bits.append(f"evals {ev['evals_passed']}/{ev['evals_total']}")
+        if bits:
+            lines.append("## overnight")
+            lines.append("night shift: " + ", ".join(bits) + ".")
+            lines.append("")
     y = sections.get("yesterday")
     if y:
         lines.append("## yesterday")

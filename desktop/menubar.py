@@ -48,6 +48,7 @@ class RoMenubar(rumps.App):
         self._approvals_menu = rumps.MenuItem("Approvals (0)")
         self.menu = [
             rumps.MenuItem("Talk to ro", callback=self.menu_talk),
+            rumps.MenuItem("Ask about my screen", callback=self.menu_screen),
             None,  # separator
             self._approvals_menu,
             rumps.MenuItem("Open web", callback=self.menu_open_web),
@@ -104,6 +105,83 @@ class RoMenubar(rumps.App):
                 self._load_approvals()
             threading.Thread(target=_post, daemon=True).start()
         return _cb
+
+    # ----- screen sense: capture, ocr locally, ask ro -----
+
+    def menu_screen(self, _: rumps.MenuItem) -> None:
+        threading.Thread(target=self._screen_sense, daemon=True).start()
+
+    def _screen_sense(self) -> None:
+        """screenshot -> on-device ocr (apple vision, no cloud) -> ro.
+        the pixels never leave the machine; only the recognized text goes to
+        the supervisor, and the vault/airgap lanes still apply there."""
+        import tempfile
+        shot = os.path.join(tempfile.gettempdir(), "ro-screen.png")
+        r = subprocess.run(["screencapture", "-x", shot], capture_output=True)
+        if r.returncode != 0 or not os.path.exists(shot):
+            rumps.notification("ro", "", "screen capture failed — grant Screen Recording permission")
+            return
+        try:
+            text = self._ocr_local(shot)
+        finally:
+            try:
+                os.unlink(shot)
+            except OSError:
+                pass
+        if not text.strip():
+            rumps.notification("ro", "", "could not read any text on screen")
+            return
+
+        window = rumps.Window(
+            message="what do you want to know about what's on your screen?",
+            title="ro · screen sense",
+            default_text="what is this error and how do i fix it?",
+            ok="ask", cancel="never mind", dimensions=(340, 60),
+        )
+        resp = window.run()
+        if not resp.clicked or not resp.text.strip():
+            return
+        self._set_status("thinking about your screen…")
+        try:
+            answer = httpx.post(
+                f"{API_BASE}/api/chat",
+                json={"text": f"(context: text ocr'd from my screen, read-only)\n---\n{text[:6000]}\n---\n\n{resp.text.strip()}"},
+                timeout=120,
+            ).json().get("text", "(no reply)")
+        except Exception as e:
+            answer = f"api error: {e}"
+        self._set_status("idle")
+        subprocess.run(["pbcopy"], input=answer.encode(), check=False)
+        rumps.Window(
+            message=answer[:2000], title="ro says (also on your clipboard)",
+            ok="thanks", dimensions=(0, 0),
+        ).run()
+
+    @staticmethod
+    def _ocr_local(path: str) -> str:
+        """apple vision framework, fully on-device."""
+        try:
+            import Quartz
+            import Vision
+        except ImportError:
+            return ""
+        data = open(path, "rb").read()
+        provider = Quartz.CGDataProviderCreateWithData(None, data, len(data), None)
+        image = Quartz.CGImageCreateWithPNGDataProvider(provider, None, False, Quartz.kCGRenderingIntentDefault)
+        if image is None:
+            return ""
+        handler = Vision.VNImageRequestHandler.alloc().initWithCGImage_options_(image, None)
+        request = Vision.VNRecognizeTextRequest.alloc().init()
+        request.setRecognitionLevel_(Vision.VNRequestTextRecognitionLevelAccurate)
+        ok, _err = handler.performRequests_error_([request], None)
+        if not ok:
+            return ""
+        lines = []
+        for obs in request.results() or []:
+            candidates = obs.topCandidates_(1)
+            if candidates and len(candidates):
+                lines.append(str(candidates[0].string()))
+        return "\n".join(lines)
 
     # ----- menu actions -----
 

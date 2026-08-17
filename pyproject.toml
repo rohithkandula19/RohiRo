@@ -44,6 +44,8 @@ dependencies = [
     # mac integrations
     "pyobjc-core>=10.3; platform_system=='Darwin'",
     "pyobjc-framework-Cocoa>=10.3; platform_system=='Darwin'",
+    "pyobjc-framework-Vision>=10.3; platform_system=='Darwin'",
+    "pyobjc-framework-Quartz>=10.3; platform_system=='Darwin'",
     # cli
     "typer>=0.12.5",
     "rich>=13.8.0",

@@ -34,6 +34,18 @@ async def open_approval(
         )
         return row["id"]
 
+    if not requires_approval:
+        # policy-approved: a standing rule the user set (e.g. a trusted
+        # browser domain) pre-approved this class of action. the row lands
+        # already approved — auditable in the history and the egress ledger —
+        # and the caller may execute it immediately. no pings.
+        row = await db.fetchrow(
+            """insert into action_log (session_id, domain, tool, description, payload, requires_approval, status, decided_at)
+               values ($1, $2, $3, $4, $5, false, 'approved', now()) returning id""",
+            session_id, domain, tool, description, json.dumps(payload),
+        )
+        return row["id"]
+
     row = await db.fetchrow(
         """insert into action_log (session_id, domain, tool, description, payload, requires_approval)
            values ($1, $2, $3, $4, $5, $6) returning id""",

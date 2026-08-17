@@ -121,3 +121,10 @@ what is fully runnable:
 - crew runs: a planner (local model first, cheap claude fallback) picks which bots a task needs, they run, the dispatcher synthesizes.
 - hire by description: /api/bots/draft writes a charter from a plain-language role. charters never instruct bypassing approvals; the drafter's system prompt forbids it.
 - schedule a bot: schedules text 'bot:<name>: <task>'. standing duties run on cron like any routine.
+
+## 2026-08-17 phase 5, tier one
+
+- browser trust tiers: browser_trust preference maps domain -> read | navigate. requires_approval=False now means policy-approved: the row lands in action_log already approved (auditable, still ledgered), and the agent executes immediately. url-bearing actions only; clicks, fills, scrolls, closes always ask. suffix matching rejects evil-github.com lookalikes.
+- ro as an mcp server: api/mcp_server.py (mcp 2.0 MCPServer, stdio). exposes memory search, archive search, open loops (read + add), pending approvals (read-only), playbook runs, ro_chat through the full supervisor, and ro_message_user (self-channel only, ledgered). the approval gate sits below the mcp surface, so no client can bypass it. claude code config snippet in the module docstring.
+- night shift: 03:30 launchd job. embedding backfill for rows that never got vectors (lane-aware, vault skipped), analyze on hot tables, a 5-task eval spot-check when keyed. report lands in preferences and the digest's overnight line.
+- screen sense: menubar "ask about my screen". screencapture -> apple vision ocr fully on-device (pyobjc-framework-vision) -> only the recognized text goes to the supervisor with a read-only framing; answer lands in a window and on the clipboard. pixels never leave the machine.

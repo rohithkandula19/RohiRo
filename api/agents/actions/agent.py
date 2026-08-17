@@ -213,6 +213,28 @@ class ActionsAgent(Agent):
         url = (spec.get("url") or "").strip()
         if not url.startswith(("http://", "https://")):
             return AgentResult(text="i need a full https:// url to render.")
+
+        # trusted domain? render without a card (standing rule the user set).
+        from api.observability import trust
+        if await trust.browser_auto("browser.render", url):
+            action_id = await approval.open_approval(
+                session_id=uuid.UUID(session_id),
+                domain="actions",
+                tool="browser.render",
+                description=f"[trusted] render {url[:80]}",
+                payload={"url": url},
+                requires_approval=False,
+            )
+            from api.supervisor import execute as execute_mod
+            result = await execute_mod.execute(action_id)
+            if result.get("ok"):
+                page = result.get("result", {})
+                return AgentResult(
+                    text=f"opened `{url}` (trusted domain):\n\n{(page.get('text') or '')[:1500]}",
+                    actions_opened=[str(action_id)],
+                )
+            return AgentResult(text=f"trusted render failed: {result.get('error')}")
+
         action_id = await approval.open_approval(
             session_id=uuid.UUID(session_id),
             domain="actions",
@@ -262,6 +284,28 @@ class ActionsAgent(Agent):
         else:  # close
             desc = "close the browser session"
             payload = {"step": "close", "session_key": session_id}
+
+        # trusted-domain goto runs without a card. clicks, fills, scrolls,
+        # and closes always ask — only url-bearing actions can be auto.
+        from api.observability import trust
+        if step == "goto" and await trust.browser_auto("browser.goto", payload.get("url")):
+            action_id = await approval.open_approval(
+                session_id=uuid.UUID(session_id),
+                domain="actions",
+                tool="browser.step",
+                description=f"[trusted] {desc}",
+                payload=payload,
+                requires_approval=False,
+            )
+            from api.supervisor import execute as execute_mod
+            result = await execute_mod.execute(action_id)
+            if result.get("ok"):
+                page = result.get("result", {})
+                return AgentResult(
+                    text=f"went there (trusted domain). {page.get('title') or ''}\n\n{(page.get('text') or '')[:1200]}",
+                    actions_opened=[str(action_id)],
+                )
+            return AgentResult(text=f"trusted goto failed: {result.get('error')}")
 
         action_id = await approval.open_approval(
             session_id=uuid.UUID(session_id),
