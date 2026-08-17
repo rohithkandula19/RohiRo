@@ -170,6 +170,27 @@ create index if not exists schedules_due_idx on schedules (enabled, next_run_at)
 -- consecutive failure counter. scheduler disables a schedule at 3.
 alter table schedules add column if not exists consecutive_failures integer not null default 0;
 
+-- learned_voice: per-channel tone rules derived from your edits.
+create table if not exists learned_voice (
+    channel text primary key,
+    rules_md text not null default '',
+    n_signals integer not null default 0,
+    updated_at timestamptz not null default now()
+);
+
+-- voice_signals: raw approve/edit/reject signals the voice learner reads.
+create table if not exists voice_signals (
+    id uuid primary key default gen_random_uuid(),
+    action_id uuid not null,
+    tool text not null default '',
+    channel text not null,
+    decision text not null,
+    original text not null default '',
+    edited text not null default '',
+    created_at timestamptz not null default now()
+);
+create index if not exists voice_signals_channel_idx on voice_signals (channel, created_at);
+
 -- triggers: when an inbound event matches, run a playbook.
 create table if not exists triggers (
     id uuid primary key default gen_random_uuid(),
