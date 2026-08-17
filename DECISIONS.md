@@ -147,3 +147,11 @@ what is fully runnable:
 - backups: nightly.sh now also writes a local ro export with keep-7 rotation, alongside the encrypted offsite dump.
 - routines card: schedules visible and manageable on /playbooks (plain task, playbook:<name>, bot:<name>: task).
 - decision: this closes feature development until the system is in real use. control-plane features were the last category that does not bet on unobserved usage. next code change should be motivated by a real session, a failing eval, or a red light on /settings.
+
+## 2026-08-17 phase 8, going public
+
+- relicensed mit, replacing all rights reserved. the point of ro flipped from portfolio piece to product real users can run. once forked this is one-way; chosen deliberately at the launch gate.
+- personal defaults swept out of runnable paths (go_live email default, digest prompt name, example urls, eval fixtures genericized).
+- readme rewritten as the pitch: the one-liner is the trust model. quick start is clone -> bootstrap -> go_live.
+- CONTRIBUTING.md carries the non-negotiables (gate, keychain, fail closed, honest degradation). SECURITY.md states the load-bearing claims, how to verify each, and the honest limits. docs/launch.md is the show hn kit — the user posts it, nothing posts itself.
+- credibility rule in the launch kit: dogfood before posting. a personal agent you don't use is a demo, and hn can smell it.

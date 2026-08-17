@@ -61,7 +61,7 @@ say "keys go into the macos keychain, never into files."
 echo "  get your anthropic key at: https://console.anthropic.com/settings/keys"
 _key anthropic_api_key "anthropic api key (sk-ant-…)" yes
 _key imessage_channel  "your own phone number or apple id email (the ro channel)" no
-_key user_email        "your gmail address" no "rohithkandula937@gmail.com"
+_key user_email        "your gmail address" no
 _key telegram_bot_token "telegram bot token from @BotFather (optional)" no
 _key telegram_owner_id  "your numeric telegram id (optional, from @userinfobot)" no
 

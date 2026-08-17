@@ -100,7 +100,7 @@ class ActionsAgent(Agent):
                 "urls — but i couldn't decide which one you meant. try one of:\n"
                 "  • \"run `git status` in ~/RohiRo\"\n"
                 "  • \"save a note titled 'todo' with body 'ship slack'\"\n"
-                "  • \"fetch https://api.github.com/users/rohithkandula937\""
+                "  • \"fetch https://api.github.com/users/octocat\""
             ),
         )
 

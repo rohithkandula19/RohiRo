@@ -1,13 +1,16 @@
-> **⚠️ All Rights Reserved.** This repository is published for viewing and portfolio purposes only. The code is **not** open source — reuse, redistribution, modification, or derivative works are not permitted without written permission. See [LICENSE](./LICENSE).
 # ro
 
-a personal agent operating system. one user. local first. runs on your mac.
+**a team of AI agents that lives on your own Mac — and can't send a single byte without your yes.**
 
-ro reads your email, knows your calendar, watches your repos, drafts your
-replies, and asks before sending anything. text it from your phone, teach it
-playbooks, let it run routines while you sleep. it lives on your laptop,
-runs on your terms, forgets nothing, and never moves money or messages
-without your yes.
+ro is a personal agent operating system: one user, local first, open source.
+text it from your phone, teach it playbooks in plain words, hire named bots
+that collaborate, and let routines run while you sleep. your memory lives in
+your postgres, your secrets live in your keychain, and every outward action
+stops at an approval card with a hash-chained receipt you can verify.
+
+the cloud alternatives charge $200-300/month and run your life on a shared
+computer under someone else's terms. ro runs on hardware you own, under rules
+you can read, with a model tier that works fully offline.
 
 ## what it does
 
@@ -84,13 +87,19 @@ a turborepo monorepo.
 
 ## quick start
 
-you need: macos, homebrew, pnpm, node 20+, python 3.12, uv, docker desktop.
+you need: macos, homebrew, pnpm, node 20+, python 3.12, uv, docker desktop
+(or brew postgres 17 + pgvector on port 5435).
 
 ```
+git clone https://github.com/rohithkandula19/RohiRo && cd RohiRo
 ./scripts/bootstrap.sh
-./scripts/setup_keys.sh
-pnpm dev
+./scripts/go_live.sh
 ```
+
+go_live walks you through everything interactively — keys into your
+keychain, permissions with re-checking, services up — and ends with ro
+introducing itself. `uv run ro doctor` any time shows every dependency as
+a green check or a red line with its exact fix.
 
 web ui at http://localhost:3000, api at http://localhost:8000. open the ui,
 hit cmd-k, say hi.
@@ -147,4 +156,4 @@ wake instead of pretending to be a data center.
 
 ## license
 
-private. for ro.
+mit. it's yours now too.

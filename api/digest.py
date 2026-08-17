@@ -259,7 +259,7 @@ async def _weave(sections: dict[str, Any]) -> str:
 
     import json
     sys = (
-        "you are ro writing rohith's morning brief. take the raw sections and "
+        "you are ro writing the user's morning brief. take the raw sections and "
         "write a tight, scannable brief. lead with what needs attention today "
         "(meetings, pending approvals), then unread email, then code, then a "
         "one-line recap of yesterday. use short markdown. no preamble, no "
