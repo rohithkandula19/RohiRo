@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ro — your agent. your mac. your yes.</title>
+<meta name="description" content="an open-source team of AI agents that lives on your own Mac and can't send a single byte without your approval.">
+<style>
+  :root {
+    --bg: #fafaf8; --ink: #17191c; --muted: #5c6167; --subtle: #9aa0a6;
+    --line: #e6e6e2; --accent: #5b5bd6; --accent-ink: #ffffff;
+    --ok: #1f7a5c; --warn: #b26b00; --card: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #131518; --ink: #e9e8e4; --muted: #a3a8ad; --subtle: #6e7378;
+      --line: #26292d; --accent: #7b7bf0; --accent-ink: #0f0f16;
+      --ok: #4fae8c; --warn: #d79b3c; --card: #1a1d21;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: -apple-system, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+    line-height: 1.55; -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 24px; }
+  nav { display: flex; justify-content: space-between; align-items: center; padding: 22px 0; }
+  .logo { display: flex; align-items: center; gap: 9px; font-weight: 650; font-size: 15px; }
+  .logo .mark { width: 26px; height: 26px; border-radius: 7px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-size: 13px; }
+  nav .links { display: flex; gap: 20px; font-size: 13.5px; color: var(--muted); }
+  nav .links a { text-decoration: none; }
+  nav .links a:hover { color: var(--ink); }
+
+  .hero { text-align: center; padding: 72px 0 30px; }
+  .pill {
+    display: inline-flex; gap: 8px; align-items: center;
+    border: 1px solid var(--line); border-radius: 999px;
+    padding: 5px 14px; font-size: 12.5px; color: var(--muted); background: var(--card);
+  }
+  .pill b { color: var(--ok); font-weight: 600; }
+  h1 {
+    margin: 26px auto 0; max-width: 17ch;
+    font-size: clamp(40px, 7.5vw, 68px); line-height: 1.04;
+    letter-spacing: -0.025em; font-weight: 700; text-wrap: balance;
+  }
+  h1 .yes { color: var(--accent); }
+  .sub { margin: 20px auto 0; max-width: 52ch; font-size: 17px; color: var(--muted); }
+  .cta-row { margin-top: 30px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    display: inline-block; text-decoration: none; font-size: 14px; font-weight: 600;
+    padding: 11px 22px; border-radius: 9px; border: 1px solid var(--line); background: var(--card);
+  }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .cta-note { margin-top: 12px; font-size: 12.5px; color: var(--subtle); }
+  .clone {
+    margin: 26px auto 0; max-width: 560px; text-align: left;
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 13px 18px; font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 12.5px; color: var(--muted); overflow-x: auto; white-space: nowrap;
+  }
+  .clone b { color: var(--ink); font-weight: 500; }
+
+  /* the product is the hero image */
+  .demo {
+    margin: 56px auto 0; max-width: 620px; text-align: left;
+    border: 1px solid var(--line); border-radius: 14px; background: var(--card);
+    padding: 20px 22px; box-shadow: 0 20px 60px rgb(0 0 0 / 0.06);
+  }
+  .demo .from-you {
+    margin-left: auto; max-width: 75%; width: fit-content;
+    background: var(--accent); color: var(--accent-ink);
+    border-radius: 14px 14px 4px 14px; padding: 9px 14px; font-size: 13.5px;
+  }
+  .demo .meta { font-size: 11px; color: var(--subtle); text-align: right; margin: 5px 2px 14px; }
+  .steps { font-size: 13px; color: var(--muted); display: grid; gap: 7px; margin: 4px 0 14px; }
+  .steps .ok::before { content: "✓  "; color: var(--ok); }
+  .card {
+    border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+  }
+  .card .head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 9px 14px; border-bottom: 1px solid var(--line);
+    font-size: 12px; color: var(--muted); background: color-mix(in srgb, var(--warn) 6%, transparent);
+  }
+  .card .head .chip { color: var(--warn); font-weight: 600; }
+  .card .body { padding: 13px 14px; font-size: 13.5px; }
+  .card .actions { display: flex; gap: 8px; padding: 0 14px 13px; }
+  .card .actions span {
+    font-size: 12.5px; font-weight: 600; padding: 7px 14px; border-radius: 7px;
+    border: 1px solid var(--line);
+  }
+  .card .actions .go { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .receipt {
+    margin-top: 12px; font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 11px; color: var(--ok);
+  }
+  .demo-caption { text-align: center; font-size: 12px; color: var(--subtle); margin-top: 14px; }
+
+  .chapters { margin: 90px 0 0; display: grid; gap: 0; }
+  .chapter {
+    display: grid; grid-template-columns: 90px 1fr; gap: 20px;
+    padding: 34px 0; border-top: 1px solid var(--line);
+  }
+  .chapter .num { font-size: 13px; color: var(--subtle); font-variant-numeric: tabular-nums; padding-top: 5px; }
+  .chapter h2 { font-size: 22px; letter-spacing: -0.015em; margin-bottom: 8px; text-wrap: balance; }
+  .chapter p { color: var(--muted); font-size: 15px; max-width: 62ch; }
+  .chapter code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.9em;
+    background: var(--card); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px;
+  }
+  @media (max-width: 640px) { .chapter { grid-template-columns: 1fr; gap: 6px; } }
+
+  .numbers {
+    margin: 70px 0 0; padding: 28px 0; border-top: 1px solid var(--line);
+    display: flex; flex-wrap: wrap; gap: 14px 44px;
+  }
+  .numbers div b { display: block; font-size: 24px; font-variant-numeric: tabular-nums; }
+  .numbers div span { font-size: 11.5px; color: var(--subtle); letter-spacing: 0.06em; text-transform: uppercase; }
+
+  footer { padding: 40px 0 60px; border-top: 1px solid var(--line); margin-top: 40px;
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 14px;
+    font-size: 13px; color: var(--muted); }
+  footer a { text-decoration: none; }
+  footer a:hover { color: var(--ink); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <div class="logo"><span class="mark">r</span> ro</div>
+    <div class="links">
+      <a href="https://github.com/rohithkandula19/RohiRo">github</a>
+      <a href="https://github.com/rohithkandula19/RohiRo#quick-start">quick start</a>
+      <a href="https://github.com/rohithkandula19/RohiRo/blob/main/SECURITY.md">security</a>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <span class="pill">open source · mit · <b>runs entirely on your mac</b></span>
+    <h1>your agent. your mac. your <span class="yes">yes.</span></h1>
+    <p class="sub">
+      ro is a team of AI agents that lives on hardware you own — reads your mail,
+      texts you back, runs your routines — and cannot send a single byte to
+      anyone without your approval. not as a promise. as a receipt.
+    </p>
+    <div class="cta-row">
+      <a class="btn primary" href="https://github.com/rohithkandula19/RohiRo">get ro on github</a>
+      <a class="btn" href="https://github.com/rohithkandula19/RohiRo/blob/main/README.md">read how it works</a>
+    </div>
+    <div class="clone"><b>git clone</b> https://github.com/rohithkandula19/RohiRo <b>&amp;&amp;</b> cd RohiRo <b>&amp;&amp;</b> ./scripts/go_live.sh</div>
+
+    <!-- illustration of the product's core loop: ask → work → gate → receipt -->
+    <div class="demo" aria-label="illustration of ro's approval flow">
+      <div class="from-you">reply to the landlord about the deposit</div>
+      <div class="meta">you, via imessage</div>
+      <div class="steps">
+        <div class="ok">searched your whole history with the landlord</div>
+        <div class="ok">found the promise from march: full return, 30 days</div>
+        <div class="ok">drafted a reply in the tone you use with them</div>
+      </div>
+      <div class="card">
+        <div class="head"><span class="chip">approval</span><span>gmail · draft ready</span></div>
+        <div class="body">just following up on the deposit — you'd mentioned a full
+          return within 30 days back in march. what's the status?</div>
+        <div class="actions"><span class="go">approve &amp; send</span><span>edit</span><span>reject</span></div>
+      </div>
+      <div class="receipt">✓ egress_ledger #58 · chain intact · nothing has ever sent without a yes</div>
+    </div>
+    <div class="demo-caption">the loop, illustrated: ask anywhere → ro works → everything outward stops at your card → every send gets a hash-chained receipt.</div>
+  </section>
+
+  <section class="chapters">
+    <div class="chapter"><div class="num">01</div><div>
+      <h2>nothing leaves without your yes — verifiably.</h2>
+      <p>every outward action stops at an approval card: web, menubar, or buttons on
+      your phone. the state machine is race-proof, edited drafts run exactly once,
+      and every departure is written to a hash-chained ledger you can re-verify
+      with one click. other agents ask you to trust them. ro hands you the math.</p>
+    </div></div>
+    <div class="chapter"><div class="num">02</div><div>
+      <h2>it lives where your life actually is.</h2>
+      <p>text your own number and ro answers. it reads your mail, knows your
+      calendar, remembers every message you've ever sent — a lifetime archive in
+      your own postgres, no retention limits, no vendor terms. cloud agents get an
+      oauth slice of you; ro gets the whole picture, because the whole picture
+      never leaves the machine.</p>
+    </div></div>
+    <div class="chapter"><div class="num">03</div><div>
+      <h2>vault lanes: some things never touch a cloud.</h2>
+      <p>tag a contact, a channel, or your finance agent as <code>vault</code> and it is
+      only ever processed by local models — the taint follows the data into memory,
+      so it can never leak into a cloud-bound prompt. flip <code>airgap</code> and the whole
+      agent runs offline. minimization by architecture, not by policy.</p>
+    </div></div>
+    <div class="chapter"><div class="num">04</div><div>
+      <h2>teach it once, own it forever.</h2>
+      <p>describe a task in plain words and ro writes the playbook. hire named bots
+      with charters that delegate to each other — every handoff logged, no hidden
+      channels. schedule anything, trigger on events, dry-run in shadow mode with
+      guaranteed zero egress before you arm it.</p>
+    </div></div>
+    <div class="chapter"><div class="num">05</div><div>
+      <h2>it eats both open ecosystems.</h2>
+      <p>drop any of the thousands of mcp servers into one config file and ro gains
+      its tools. point it at any folder of agent skills and ro gains its
+      procedures. all of it arrives pre-wrapped in the approval gate. the
+      subscription agents consume neither.</p>
+    </div></div>
+    <div class="chapter"><div class="num">06</div><div>
+      <h2>it gets better every week — with proof.</h2>
+      <p>ro studies your edits and rejections, proposes new style rules as approval
+      cards (nothing rewrites its brain without you), and re-runs its eval suite so
+      a personality change can never silently break behavior. at 3:30am it sharpens
+      its own memory on free local compute. you wake up to the changelog.</p>
+    </div></div>
+  </section>
+
+  <div class="numbers">
+    <div><b>25</b><span>built-in workers</span></div>
+    <div><b>∞</b><span>playbooks &amp; bots</span></div>
+    <div><b>80+</b><span>tests passing</span></div>
+    <div><b>0</b><span>unapproved sends possible</span></div>
+    <div><b>$0</b><span>per month, forever</span></div>
+  </div>
+
+  <footer>
+    <span>mit licensed. built by <a href="https://github.com/rohithkandula19">rohith kandula</a>.</span>
+    <span>
+      <a href="https://github.com/rohithkandula19/RohiRo">github</a> ·
+      <a href="https://github.com/rohithkandula19/RohiRo/blob/main/SECURITY.md">security</a> ·
+      <a href="https://github.com/rohithkandula19/RohiRo/blob/main/CONTRIBUTING.md">contributing</a>
+    </span>
+  </footer>
+</div>
+</body>
+</html>
