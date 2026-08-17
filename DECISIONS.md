@@ -155,3 +155,9 @@ what is fully runnable:
 - readme rewritten as the pitch: the one-liner is the trust model. quick start is clone -> bootstrap -> go_live.
 - CONTRIBUTING.md carries the non-negotiables (gate, keychain, fail closed, honest degradation). SECURITY.md states the load-bearing claims, how to verify each, and the honest limits. docs/launch.md is the show hn kit — the user posts it, nothing posts itself.
 - credibility rule in the launch kit: dogfood before posting. a personal agent you don't use is a demo, and hn can smell it.
+
+## 2026-08-17 phase 9, the skills bridge
+
+- ro speaks anthropic's open SKILL.md format. mcp brought the world's tools; the skills bridge brings the world's procedures. catalog scans ~/.claude/skills, ./skills, and skill_paths preference two levels deep, frontmatter-only for speed, cached 5 minutes. verified live against 4,570 skills on this machine.
+- safety unchanged by construction: a skill body is third-party instructions run through the supervisor; anything it wants done in the world goes through the normal proposers and the approval gate. bundled scripts never execute directly — only through an approved shell card.
+- with this, ro consumes both open agent ecosystems (mcp servers, agent skills) approval-gated. grok bot consumes neither. this was the last ecosystem door; there are no more ecosystems to bridge.

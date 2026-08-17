@@ -38,6 +38,7 @@ from api.routes import (
     research,
     schedules,
     settings as settings_route,
+    skills as skills_route,
     trace,
     triggers as triggers_route,
     voice,
@@ -211,6 +212,7 @@ app.include_router(eval_route.router, prefix="/api/eval", tags=["eval"])
 app.include_router(schedules.router, prefix="/api/schedules", tags=["schedules"])
 app.include_router(playbooks_route.router, prefix="/api/playbooks", tags=["playbooks"])
 app.include_router(triggers_route.router, prefix="/api/triggers", tags=["triggers"])
+app.include_router(skills_route.router, prefix="/api/skills", tags=["skills"])
 app.include_router(push.router, prefix="/api/push", tags=["push"])
 app.include_router(install.router, tags=["install"])  # mounted at root (/install/ios.html)
 app.include_router(webhooks.router, tags=["webhooks"])  # /webhooks/whatsapp

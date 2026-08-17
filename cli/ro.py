@@ -87,6 +87,23 @@ def export() -> None:
 
 
 @app.command()
+def skills(query: str | None = typer.Argument(None)) -> None:
+    """browse the agent-skills catalog ro can run (anthropic SKILL.md format)."""
+
+    from api.skills_bridge import catalog
+
+    async def _list() -> None:
+        found = await catalog(query=query, limit=30)
+        if not found:
+            console.print("[dim]no skills found. drop SKILL.md folders in ~/.claude/skills or ./skills[/dim]")
+            return
+        for s in found:
+            console.print(f"[bold]{s['name']}[/bold]  [dim]{s['description'][:70]}[/dim]")
+
+    asyncio.run(_list())
+
+
+@app.command()
 def doctor() -> None:
     """diagnose everything: keys, permissions, services, models. the
     go-live dry run — every red line comes with its fix."""
