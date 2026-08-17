@@ -165,3 +165,9 @@ what is fully runnable:
 ## 2026-08-17 phase 10, openrouter path
 
 - the brain accepts a second key: openrouter_api_key runs the same claude models through openrouter's openai-compatible gateway when no direct anthropic key exists. a shim quacks like the anthropic message shape for every caller. tool-bearing calls still require the direct key (honest limitation, raised loudly). spend attribution tags openrouter models. the key is stored by the user themselves via keyring — keys are never pasted into chats, and the assistant never handles them; that rule is part of ro's own dna and it applied to building ro too.
+
+## 2026-08-17 phase 11, the honesty pass on the web ui
+
+- the user caught the scaffold's demo fiction surviving in the ui: mock sidebar chats, an invented hero summary ("3 drafts, 1 meeting"), a fake live-trace reel starring a person who does not exist, a hardcoded inbox approval, stats polluted by test rows. all of it violated the repo's own no-fake-data rule. root cause: the rule was enforced in the api from day one but never audited in the web layer.
+- fixes: sidebar reads /api/chat/sessions with an honest empty state. hero reads real approvals + health with time-of-day greeting, no name until a profile provides one. live trace renders only real sse events, empty state says so. overview today-cards compute from approvals, the egress ledger, and schedules. inbox renders real pending approvals with working approve/reject. suggestion chips genericized (prompts may suggest, never fabricate people). test rows purged from action_log.
+- lesson logged for contributors: demo content is a liability that outlives its scaffold. if a component cannot get real data, it shows an honest empty state — an empty list is not a design failure, it is the truth.

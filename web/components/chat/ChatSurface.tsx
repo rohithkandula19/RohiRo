@@ -16,12 +16,12 @@ type Msg = UserMsg | AssistantMsg;
 const EXAMPLES = [
   "Show me unread emails from this week",
   "What's on my calendar tomorrow?",
-  "Reply to Sarah saying Tuesday works",
+  "Draft a reply to my latest email",
   "Find 90 minutes free this week",
-  "Send Mom a text saying I'll call tonight",
-  "DM Alex on slack about the deploy",
+  "Text my ro channel a hello",
+  "What did I promise people this week?",
   "Show my recent github repos",
-  "Summarize what changed in rohflow",
+  "Summarize my open pull requests",
 ];
 
 export function ChatSurface() {
@@ -131,7 +131,7 @@ export function ChatSurface() {
                 r
               </div>
               <h1 className="mt-5 text-[26px] font-semibold tracking-tight text-ink">
-                Hey Rohith. What should I do?
+                Hey. What should I do?
               </h1>
               <p className="mt-2 text-[13.5px] text-ink-muted">
                 I can read your email, draft replies, schedule things, and more. Just ask.

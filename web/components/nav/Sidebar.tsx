@@ -4,20 +4,33 @@ import { useEffect, useState } from "react";
 
 type Conversation = { id: string; title: string; ago: string };
 
-const RECENT_MOCK: Conversation[] = [
-  { id: "c1", title: "Reply to Sarah re: Photon round 2", ago: "now" },
-  { id: "c2", title: "Block 90 min Thursday for deep work", ago: "2h" },
-  { id: "c3", title: "Summarize rohflow this week", ago: "yesterday" },
-  { id: "c4", title: "What did I spend on subs last month", ago: "2d" },
-  { id: "c5", title: "Papers on agent eval, anything new?", ago: "3d" },
-];
+function ago(iso: string | null): string {
+  if (!iso) return "";
+  const mins = Math.max(0, (Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 60) return `${Math.round(mins)}m`;
+  if (mins < 60 * 24) return `${Math.round(mins / 60)}h`;
+  return `${Math.round(mins / (60 * 24))}d`;
+}
 
 export function Sidebar() {
   const [recent, setRecent] = useState<Conversation[]>([]);
 
   useEffect(() => {
-    // future: fetch real session list
-    setRecent(RECENT_MOCK);
+    // real sessions only. an empty list is the honest empty state.
+    fetch("/api/chat/sessions?limit=8")
+      .then((r) => r.json())
+      .then((rows: { session_id: string; channel: string; chat_key: string; last_at: string | null; turns: number }[]) =>
+        setRecent(
+          rows
+            .filter((r) => r.turns > 0)
+            .map((r) => ({
+              id: r.session_id,
+              title: `${r.channel} · ${r.chat_key.slice(0, 26)}`,
+              ago: ago(r.last_at),
+            }))
+        )
+      )
+      .catch(() => setRecent([]));
   }, []);
 
   function newChat() {
@@ -59,6 +72,11 @@ export function Sidebar() {
               </button>
             </li>
           ))}
+          {recent.length === 0 && (
+            <li className="px-2 py-1.5 text-[11.5px] text-ink-subtle">
+              nothing yet. your first conversation lands here.
+            </li>
+          )}
         </ul>
       </div>
 
