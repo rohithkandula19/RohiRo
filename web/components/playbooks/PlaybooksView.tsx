@@ -46,6 +46,29 @@ export function PlaybooksView() {
     setNote("");
   }
 
+  async function teach() {
+    const description = window.prompt(
+      "describe the task in plain words — what should ro do, in what order?"
+    );
+    if (!description || description.trim().length < 10) return;
+    setBusy(true);
+    setNote("drafting…");
+    const r = await fetch("/api/playbooks/draft", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ description }),
+    });
+    setBusy(false);
+    if (!r.ok) {
+      setNote("draft failed — is the api key set?");
+      return;
+    }
+    const data = await r.json();
+    setSelected(null);
+    setBody(data.body);
+    setNote("draft ready. name it and save.");
+  }
+
   async function save() {
     if (!name.trim()) {
       setNote("name it first (lowercase slug).");
@@ -91,6 +114,7 @@ export function PlaybooksView() {
     <div className="grid max-w-5xl grid-cols-1 gap-4 md:grid-cols-[240px_1fr]">
       <div className="flex flex-col gap-2">
         <button className="btn" onClick={fresh}>new playbook</button>
+        <button className="btn" onClick={teach}>teach ro (draft from words)</button>
         {list.map((p) => (
           <button
             key={p.name}
