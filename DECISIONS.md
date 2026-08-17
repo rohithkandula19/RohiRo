@@ -62,3 +62,28 @@ what is fully runnable:
 - `uv run uvicorn api.main:app --port 8000` boots the api with all routes.
 - `cd web && pnpm install && pnpm dev` boots the web at :3000 (after pnpm install resolves).
 - `uv run python cli/ro.py chat "hello"` runs the supervisor against claude (with the key set).
+
+## 2026-08-17 finish-the-build session (via /autoplan review pipeline)
+
+- plan reviewed before building: ceo + eng phases, one independent claude voice each, spec loop 3 iterations, 14 doc issues fixed, 15 eng findings absorbed. full record in PLAN.md.
+- listeners stay in-process in the api. the imessage/ and voice/ daemon scaffolds were deleted; ro.telegram.plist pointed at a module that never existed. one process, launchd manages api + web + jobs.
+- approvals are a cas state machine now. decide flips pending only; execute claims approved/edited into executing atomically; edited bodies run exactly once; provider result stored on the row. reason: live double-send race and edited-path 500 found by the review.
+- crash between send and executed-mark leaves the row in executing on purpose. re-claiming could double-send; the runbook covers the manual check.
+- seen_keys and schedules tables had no ddl anywhere. committed, plus bootstrap applies tree_schema.sql. fresh clones broke before this.
+- bearer middleware on all /api/* when remote_secret exists. setup_remote.sh binds 0.0.0.0 while only two voice endpoints checked auth before.
+- every channel fails closed: telegram needs owner id, gmail needs user_email, imessage needs imessage_channel. guessing who may command ro is the vulnerability.
+- the ro channel design: text your own number (or a dedicated contact). is_from_me cannot separate ro's replies from yours in the self chat (same apple id), so the gateway records a hash of everything it sends and the poll skips matches. chat.db was unreadable in the build shell (no full disk access), so this ships behind a verification spike documented in PLAN.md b.1.
+- replies to the ro channel send directly, no approval. texting you back in your own channel is a write to your own system under the house rules. sends to anyone else stay gated.
+- one gateway for all channels: stable (channel, chat_key) -> session uuid, everything through run_supervisor. conversations stop being amnesiac; traces and the approval gate hold on the highest-volume paths.
+- applescript sends pass handle and text as argv. the handle was interpolated raw before, and the handle comes from llm-constructed payloads influenced by inbound content.
+- scheduler claims before firing (cas on next_run_at), disables after 3 consecutive failures, disables on a broken cron spec instead of refiring every 30s with claude spend.
+- budget guard v1: spend_log per claude call attributed via contextvar (routine:x, channel:y, playbook:z, consolidate, chat), daily_token_budget preference is a hard cap, background runs refuse over budget and fail closed if the check errors. user chat is never blocked.
+- liveness heartbeats per worker surfaced in /settings. silent breakage was the six-month failure mode the review called out.
+- voice went local-first: whisper small.en in a one-worker process pool (cpu work off the event loop), watchdog unloads after 10 idle minutes, openai fallback when ffmpeg/whisper missing, say+afconvert tts fallback, ios shortcut contract preserved.
+- consolidation is real: sessions older than 14 days summarized by claude (cheap model), embedded, raw turns deleted, capped nightly, budget-checked.
+- web push: vapid keys in keychain, subscriptions in postgres, 410 pruning, localhost v1 (service worker secure-context pass), tailscale cert documented for remote. approval opens and digests ping.
+- digest delivers proactively: imessage ro channel (sent-hash recorded first), telegram owner dm, push headline. ro starts conversations now.
+- playbooks v1 are run-verbatim markdown files under playbooks/. ## step headings chain through one stable session, each step sees the prior step's digest. that is the deterministic form of agent coordination; every outward write still stops at the approval gate. parameterization is v2, screen-recording capture deferred (TODOS.md).
+- grok bot comparison, honest: ro now has always-on (launchd, best effort while the mac is awake), messaging interface, workflow learning (text-taught), coordination (chains), proactive mode, persistent browser profiles (host-scoped, opt-in). ro keeps secrets in the keychain and every outward write behind approval, which grok bot's shared-computer design does not.
+- eslint configured for web (next/core-web-vitals). one jsx error fixed, img warnings accepted for now.
+- deferred, logged in TODOS.md: whatsapp entry point (meta api account), screen-recording capture, plaid + apple health.
