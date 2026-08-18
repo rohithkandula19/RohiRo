@@ -112,6 +112,7 @@ export function Sidebar() {
           <span className="h-1.5 w-1.5 rounded-full bg-success" />
           <span>ro is online</span>
         </div>
+        <ThemeToggle />
         <Link
           href="/settings"
           className="mt-2 flex w-full items-center gap-2 rounded-[6px] px-2 py-1.5 text-[12.5px] text-ink-muted hover:bg-surface-hover hover:text-ink"
@@ -173,5 +174,40 @@ function NavSection({
         </ul>
       )}
     </div>
+  );
+}
+
+function ThemeToggle() {
+  const [theme, setTheme] = useState<string>("");
+
+  useEffect(() => {
+    try {
+      setTheme(localStorage.getItem("ro-theme") || "");
+    } catch {}
+  }, []);
+
+  function cycle() {
+    // "" (system) -> dark -> light -> system
+    const next = theme === "" ? "dark" : theme === "dark" ? "light" : "";
+    setTheme(next);
+    try {
+      if (next) {
+        localStorage.setItem("ro-theme", next);
+        document.documentElement.dataset.theme = next;
+      } else {
+        localStorage.removeItem("ro-theme");
+        delete document.documentElement.dataset.theme;
+      }
+    } catch {}
+  }
+
+  return (
+    <button
+      onClick={cycle}
+      className="mt-1 flex w-full items-center gap-2 rounded-[6px] px-2 py-1.5 text-[12.5px] text-ink-muted hover:bg-surface-hover hover:text-ink"
+    >
+      <span className="text-ink-subtle">{theme === "dark" ? "☾" : theme === "light" ? "☀" : "◑"}</span>
+      <span>{theme === "dark" ? "Dark" : theme === "light" ? "Light" : "System"} theme</span>
+    </button>
   );
 }

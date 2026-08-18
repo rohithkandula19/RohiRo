@@ -15,8 +15,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: "try{var t=localStorage.getItem('ro-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}",
+          }}
+        />
         <CommandPaletteProvider>
           <div className="flex h-screen overflow-hidden">
             <Sidebar />

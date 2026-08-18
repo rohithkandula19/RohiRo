@@ -27,6 +27,51 @@
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
+/* dark: the whole app flips through the same tokens. system preference
+   by default; the sidebar toggle stamps data-theme and wins. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F1012;
+    --surface: #17181C;
+    --surface-hover: #1E2025;
+    --sidebar: #121316;
+    --ink: #E9EAEE;
+    --ink-muted: #9DA1AA;
+    --ink-subtle: #686D76;
+    --accent: #707CE8;
+    --accent-hover: #828DF0;
+    --accent-soft: #23264A;
+    --accent-ink: #FFFFFF;
+    --success: #58C892;
+    --warning: #F0A45E;
+    --danger: #ED6B6F;
+    --line: rgba(255, 255, 255, 0.07);
+    --line-strong: rgba(255, 255, 255, 0.12);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.45);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F1012;
+  --surface: #17181C;
+  --surface-hover: #1E2025;
+  --sidebar: #121316;
+  --ink: #E9EAEE;
+  --ink-muted: #9DA1AA;
+  --ink-subtle: #686D76;
+  --accent: #707CE8;
+  --accent-hover: #828DF0;
+  --accent-soft: #23264A;
+  --accent-ink: #FFFFFF;
+  --success: #58C892;
+  --warning: #F0A45E;
+  --danger: #ED6B6F;
+  --line: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(255, 255, 255, 0.12);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+
 * {
   box-sizing: border-box;
 }
