@@ -3,7 +3,7 @@ import { AuditView } from "@/components/audit/AuditView";
 
 export default function AuditPage() {
   return (
-    <div>
+    <div className="page">
       <PageHeader
         kicker="receipts"
         title="audit."

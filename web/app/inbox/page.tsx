@@ -5,7 +5,7 @@ import { Divider } from "@/components/editorial/Divider";
 
 export default function InboxPage() {
   return (
-    <div>
+    <div className="page">
       <PageHeader
         kicker="inbox"
         title="Inbox"

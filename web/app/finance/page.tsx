@@ -4,7 +4,7 @@ import { FinanceView } from "@/components/finance/FinanceView";
 
 export default function FinancePage() {
   return (
-    <div>
+    <div className="page">
       <PageHeader
         kicker="balances, expenses, subs"
         title="finance."

@@ -7,7 +7,7 @@ import { LanesCard } from "@/components/settings/LanesCard";
 
 export default function SettingsPage() {
   return (
-    <div>
+    <div className="page">
       <PageHeader
         kicker="under the hood"
         title="settings."

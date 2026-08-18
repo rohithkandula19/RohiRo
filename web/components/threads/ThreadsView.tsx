@@ -38,7 +38,7 @@ export function ThreadsView() {
           <button
             key={s.session_id}
             onClick={() => open(s.session_id)}
-            className={`card text-left ${selected === s.session_id ? "ring-1 ring-ink" : ""}`}
+            className={`card text-left ${selected === s.session_id ? "ring-1 ring-accent" : ""}`}
           >
             <div className="text-[13px] text-ink">
               {s.channel} · {s.chat_key.slice(0, 24)}

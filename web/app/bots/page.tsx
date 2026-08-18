@@ -3,7 +3,7 @@ import { CrewView } from "@/components/bots/CrewView";
 
 export default function BotsPage() {
   return (
-    <div>
+    <div className="page">
       <PageHeader
         kicker="your crew"
         title="bots."

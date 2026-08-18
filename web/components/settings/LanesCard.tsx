@@ -74,7 +74,7 @@ export function LanesCard() {
         </button>
       </div>
       <div className="mt-4 border-t border-ink-faint pt-2">
-        <div className="text-[13px] text-ink">vault lanes <span className="text-[12px] text-red-400">{note}</span></div>
+        <div className="text-[13px] text-ink">vault lanes <span className="text-[12px] text-danger">{note}</span></div>
         <div className="text-[12px] text-ink-muted">
           anything matching these is only ever processed on-device, and its memory rows never enter a cloud prompt.
         </div>

@@ -4,7 +4,7 @@ import { JobsKanban } from "@/components/jobs/JobsKanban";
 
 export default function JobsPage() {
   return (
-    <div>
+    <div className="page">
       <PageHeader
         kicker="opportunities"
         title="jobs."

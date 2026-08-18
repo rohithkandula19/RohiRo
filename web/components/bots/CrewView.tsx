@@ -113,7 +113,7 @@ export function CrewView() {
           <button
             key={b.name}
             onClick={() => open(b.name)}
-            className={`card text-left ${selected === b.name ? "ring-1 ring-ink" : ""}`}
+            className={`card text-left ${selected === b.name ? "ring-1 ring-accent" : ""}`}
           >
             <div className="text-[13px] text-ink">{b.name}</div>
             <div className="text-[12px] text-ink-muted">{b.title}</div>
@@ -151,7 +151,7 @@ export function CrewView() {
         </div>
         {out && (
           <div className="card text-[13px]">
-            {out.reason && <div className="text-red-400">{out.reason}</div>}
+            {out.reason && <div className="text-danger">{out.reason}</div>}
             {out.assignments && (
               <div className="mb-2 text-[12px] text-ink-muted">
                 plan: {out.assignments.map((a) => `${a.bot} ← ${a.task.slice(0, 50)}`).join(" · ")}

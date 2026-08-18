@@ -5,7 +5,7 @@ import { RoutinesCard } from "@/components/playbooks/RoutinesCard";
 
 export default function PlaybooksPage() {
   return (
-    <div>
+    <div className="page">
       <PageHeader
         kicker="teach ro"
         title="playbooks."

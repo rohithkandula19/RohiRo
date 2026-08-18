@@ -4,7 +4,7 @@ import { WeekView } from "@/components/calendar/WeekView";
 
 export default function CalendarPage() {
   return (
-    <div>
+    <div className="page">
       <PageHeader
         kicker="time"
         title="calendar."

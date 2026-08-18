@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/editorial/PageHeader";
 
 export default function OverviewPage() {
   return (
-    <div>
+    <div className="page">
       <PageHeader
         kicker="overview"
         title="Overview"
@@ -21,7 +21,7 @@ export default function OverviewPage() {
 
       <TodayCards />
 
-      <Divider label="Connected services" right={<span>14 integrations</span>} />
+      <Divider label="Connected services" />
       <IntegrationsGrid />
     </div>
   );

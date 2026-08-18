@@ -80,7 +80,7 @@ export function TriggersCard() {
           className="card w-48 text-[13px]"
         />
         <button className="btn" onClick={add}>add trigger</button>
-        <span className="text-[12px] text-red-500">{note}</span>
+        <span className="text-[12px] text-danger">{note}</span>
       </div>
       <div className="mt-3 flex flex-col gap-1">
         {list.map((t) => (

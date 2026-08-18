@@ -39,7 +39,7 @@ export function LivenessCard() {
           return (
             <div key={b.name} className="flex items-center justify-between">
               <span className="text-[13px] text-ink">{b.name.replace(/_/g, " ")}</span>
-              <span className={`text-[12px] ${red ? "text-red-500" : "text-emerald-500"}`}>
+              <span className={`text-[12px] ${red ? "text-danger" : "text-success"}`}>
                 {red ? (b.error ? `red — ${b.error.slice(0, 60)}` : "stale") : "ok"}
               </span>
             </div>

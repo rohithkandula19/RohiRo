@@ -5,7 +5,7 @@ import { LoopsCard } from "@/components/memory/LoopsCard";
 
 export default function MemoryPage() {
   return (
-    <div>
+    <div className="page">
       <PageHeader
         kicker="what i know"
         title="memory."

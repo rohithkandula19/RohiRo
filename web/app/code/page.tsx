@@ -4,7 +4,7 @@ import { RepoGrid } from "@/components/code/RepoGrid";
 
 export default function CodePage() {
   return (
-    <div>
+    <div className="page">
       <PageHeader
         kicker="repos"
         title="code."

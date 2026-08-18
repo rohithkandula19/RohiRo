@@ -3,7 +3,7 @@ import { ThreadsView } from "@/components/threads/ThreadsView";
 
 export default function ThreadsPage() {
   return (
-    <div>
+    <div className="page">
       <PageHeader
         kicker="the room where it happens"
         title="threads."

@@ -258,3 +258,12 @@ table.term-table th {
 }
 table.term-table td { padding: 9px 12px; border-bottom: 1px solid var(--line); }
 table.term-table tr:last-child td { border-bottom: 0; }
+
+/* editorial pages breathe; the chat home manages its own layout. */
+.page {
+  padding: 30px 38px 70px;
+  max-width: 1160px;
+}
+@media (max-width: 640px) {
+  .page { padding: 20px 18px 50px; }
+}

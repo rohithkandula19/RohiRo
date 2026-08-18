@@ -4,7 +4,7 @@ import { FilesView } from "@/components/files/FilesView";
 
 export default function FilesPage() {
   return (
-    <div>
+    <div className="page">
       <PageHeader
         kicker="drive, local, notion"
         title="files."

@@ -4,7 +4,7 @@ import { ReadingList } from "@/components/research/ReadingList";
 
 export default function ResearchPage() {
   return (
-    <div>
+    <div className="page">
       <PageHeader
         kicker="papers, threads, threads on threads"
         title="research."

@@ -59,7 +59,7 @@ export function RoutinesCard() {
         <input value={spec} onChange={(e) => setSpec(e.target.value)} className="card w-36 font-mono text-[12.5px]" placeholder="30 7 * * *" />
         <input value={text} onChange={(e) => setText(e.target.value)} className="card flex-1 text-[13px]" placeholder="build my morning digest / playbook:morning-scan / bot:scout: check my competitors" />
         <button className="btn" onClick={add}>schedule</button>
-        <span className="text-[12px] text-red-400">{note}</span>
+        <span className="text-[12px] text-danger">{note}</span>
       </div>
       <div className="mt-3 flex flex-col gap-1">
         {list.map((s) => (

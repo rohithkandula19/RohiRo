@@ -119,7 +119,7 @@ export function PlaybooksView() {
           <button
             key={p.name}
             onClick={() => open(p.name)}
-            className={`card text-left text-[13px] ${selected === p.name ? "ring-1 ring-ink" : ""}`}
+            className={`card text-left text-[13px] ${selected === p.name ? "ring-1 ring-accent" : ""}`}
           >
             <div className="text-ink">{p.name}</div>
             <div className="text-[12px] text-ink-muted">{p.steps} step{p.steps === 1 ? "" : "s"}</div>

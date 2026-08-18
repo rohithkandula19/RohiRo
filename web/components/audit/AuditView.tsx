@@ -43,7 +43,7 @@ export function AuditView() {
         </div>
         <div className="flex items-center gap-3">
           {verdict && (
-            <span className={`text-[12.5px] ${verdict.ok ? "text-emerald-500" : "text-red-500"}`}>
+            <span className={`text-[12.5px] ${verdict.ok ? "text-success" : "text-danger"}`}>
               {verdict.ok
                 ? `chain intact · ${verdict.entries} entries`
                 : `BROKEN at #${verdict.broken_at}: ${verdict.reason}`}

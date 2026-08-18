@@ -4,7 +4,7 @@ import { HealthCards } from "@/components/health/HealthCards";
 
 export default function HealthPage() {
   return (
-    <div>
+    <div className="page">
       <PageHeader
         kicker="apple health, strava"
         title="health."
